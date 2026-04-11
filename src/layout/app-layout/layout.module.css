@@ -1,0 +1,36 @@
+.layoutWrapper {
+    display: grid;
+    height: 100dvh;
+
+    grid-template-columns: 320px 1fr;
+
+    grid-template-rows: 64px 1fr;
+
+    grid-template-areas:
+        "sidebar topbar"
+        "sidebar content";
+}
+
+.layoutHeader {
+    grid-area: topbar;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 16px;
+    justify-content: space-between;
+}
+
+.layoutSidebar {
+    grid-area: sidebar;
+    width: 100%;
+    background-color: var(--color-bg);
+    border-right: 1px solid var(--color-border);
+    flex-direction: column;
+    display: flex;
+}
+
+.layoutContent {
+    grid-area: content;
+    overflow-y: auto;
+}

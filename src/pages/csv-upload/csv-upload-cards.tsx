@@ -1,0 +1,45 @@
+import { ChartNoAxesCombined, FileUp, AlertCircle } from "lucide-react";
+import { StatCard, type StatCardProps } from "../../components/stat-card";
+
+const CSV_UPLOAD_CARDS: StatCardProps[] = [
+    {
+        title: "1,025",
+        description: "Total Bonuses",
+        badge: "+4.2%",
+        badgeBackground: "bg-[#FFFBEB]",
+        badgeTextColor: "text-[#F59E0B]",
+        cardBackground: "bg-[#F3B2001A]",
+        icon: FileUp,
+        iconBackground: "bg-[#F3B20026]",
+        iconColor: "text-[#F3B200]",
+    },
+    {
+        title: "8",
+        description: "Active Operators",
+        badge: "-1.2%",
+        badgeBackground: "bg-[#2C61E51A]",
+        badgeTextColor: "text-[#2C61E5]",
+        cardBackground: "bg-[#234EB71A]",
+        icon: ChartNoAxesCombined,
+        iconBackground: "bg-[#98B9F233]",
+        iconColor: "text-[#2C61E5]",
+    },
+    {
+        title: "3",
+        description: "Failed Uploads",
+        cardBackground: "bg-[#0596691A]",
+        icon: AlertCircle,
+        iconBackground: "bg-[#13F93D33]",
+        iconColor: "text-[#059669]",
+    },
+];
+
+export function CsvUploadCards() {
+    return (
+        <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-2 xl:grid-cols-3">
+            {CSV_UPLOAD_CARDS.map((card) => (
+                <StatCard key={card.description} {...card} />
+            ))}
+        </div>
+    );
+}
