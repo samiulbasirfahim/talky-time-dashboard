@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { ArrowRight, ExternalLink, History } from "lucide-react";
 import { AppButton } from "../../components/button";
 import { ErrorActionBanner } from "../../components/error-action-banner";
 import { AppText } from "../../components/text";
@@ -16,6 +16,13 @@ type ProfileRow = {
     operator: string;
     isAssigned: boolean;
     monEarning: string;
+};
+
+type LastReassignment = {
+    profileName: string;
+    profileId: string;
+    assignedTo: string;
+    time: string;
 };
 
 const INITIAL_PROFILE_ROWS: ProfileRow[] = [
@@ -78,6 +85,21 @@ const INITIAL_PROFILE_ROWS: ProfileRow[] = [
 ];
 
 const PAGE_SIZE = 4;
+
+const LAST_REASSIGNMENTS: LastReassignment[] = [
+    {
+        profileName: "Maya_Gold",
+        profileId: "prf4",
+        assignedTo: "Akash.65",
+        time: "11:03am",
+    },
+    {
+        profileName: "Diamond_Elite",
+        profileId: "prf9",
+        assignedTo: "Julian.m",
+        time: "10:45am",
+    },
+];
 
 const buildProfileColumns = (
     onEdit: (row: ProfileRow) => void,
@@ -211,6 +233,42 @@ export function ProfileLeftSection() {
                     itemLabel: "profiles",
                 }}
             />
+
+            <section className="rounded-3xl bg-[#F9FBFE] px-6 py-5">
+                <div className="mb-6 flex items-center gap-2.5">
+                    <History className="text-text-focus" size={22} strokeWidth={2.2} />
+                    <AppText variant="smallHeader" className="font-semibold text-text">
+                        Last Reassignments
+                    </AppText>
+                </div>
+
+                <div className="space-y-8">
+                    {LAST_REASSIGNMENTS.map((entry) => (
+                        <div key={entry.profileId} className="flex items-start justify-between gap-4">
+                            <div>
+                                <AppText variant="description" className="font-semibold text-text">
+                                    {entry.profileName}
+                                </AppText>
+                                <AppText variant="description" className="mt-1 text-text-secondary">
+                                    ID: {entry.profileId}
+                                </AppText>
+                            </div>
+
+                            <div className="text-right">
+                                <div className="flex items-center justify-end gap-1 text-green">
+                                    <ArrowRight size={18} strokeWidth={2.2} />
+                                    <AppText variant="description" className="font-semibold text-green">
+                                        {entry.assignedTo}
+                                    </AppText>
+                                </div>
+                                <AppText variant="description" className="mt-1 text-[#8A9CB3]">
+                                    {entry.time}
+                                </AppText>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
         </div>
     );
 }

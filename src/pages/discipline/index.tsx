@@ -1,5 +1,6 @@
 import { HeaderSection } from "../../components/header-section";
 import { DisciplineCards } from "./discipline-cards";
+import { DisciplineIssueWarningSection } from "./discipline-issue-warning-section";
 import { DisciplineWarningTable } from "./discipline-warning-table";
 
 export function Discipline() {
@@ -14,6 +15,7 @@ export function Discipline() {
             <div className="p-4">
                 <DisciplineWarningTable />
             </div>
+            <DisciplineIssueWarningSection />
         </>
     );
 }

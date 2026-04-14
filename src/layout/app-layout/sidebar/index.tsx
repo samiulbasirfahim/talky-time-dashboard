@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import styles from "../layout.module.css";
 import { ButtonGroup, type ButtonGroupProps } from "./button-group";
-import { Logo } from "./logo";
+import { Logo } from "../../../components/logo";
 import { AppText } from "../../../components/text";
 import { AppButton } from "../../../components/button";
 
@@ -117,6 +117,7 @@ export function Sidebar() {
     return (
         <div className={styles.layoutSidebar}>
             <Logo
+                hasBorder={true}
                 logo="https://thumbs.dreamstime.com/b/vector-logo-colorful-design-41236752.jpg"
                 subtitle="Logo Name"
                 title="Multi-operator"

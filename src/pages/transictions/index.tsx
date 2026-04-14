@@ -1,6 +1,5 @@
 import { Plus } from "lucide-react";
 import { HeaderSection } from "../../components/header-section";
-import { TransactionsCards } from "./transactions-cards";
 import { TransactionsDebtsTable } from "./transactions-debts-table";
 
 export function Transactions() {
@@ -19,7 +18,7 @@ export function Transactions() {
                     },
                 ]}
             />
-            <TransactionsCards />
+            {/* <TransactionsCards /> */}
             <div className="p-4">
                 <TransactionsDebtsTable />
             </div>

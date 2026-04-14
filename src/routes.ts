@@ -16,8 +16,13 @@ import {
     Transactions,
     Payouts,
 } from "./pages";
+import { Login } from "./pages/login/login";
 
 export const routes = createBrowserRouter([
+{
+    path: "/login",
+    Component: Login,
+},
     {
         path: "/",
         Component: AppLayout,
@@ -69,6 +74,7 @@ export const routes = createBrowserRouter([
                 path: "payouts",
                 Component: Payouts,
             },
+
             {
                 path: "*",
                 Component: NotFound,

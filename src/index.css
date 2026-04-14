@@ -30,6 +30,12 @@
     --color-green-light: #dcfce7;
     --color-red-light: #fee2e2;
     --color-yellow-light: #fef9c3;
+
+    --color-login-image-bg: #F4F4F4;
+    --color-tab-bg: #F2F4F6;
+    --color-tab-focus-bg: #FFFFFF;
+
+    --color-section-bg: #FBFCFE;
 }
 
 html {

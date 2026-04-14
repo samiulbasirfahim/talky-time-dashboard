@@ -4,6 +4,7 @@ import React from "react";
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: "focus" | "outline" | "ghost" | "danger" | "link";
     size?: "sm" | "md" | "lg"; // Added size prop
+    fullWidth?: boolean;
     prefixIcon?: LucideIcon;
     suffixIcon?: LucideIcon;
     iconColor?: string;
@@ -14,6 +15,7 @@ export const AppButton = ({
     children,
     variant = "focus",
     size = "md", // Default to medium
+    fullWidth = false,
     prefixIcon: Prefix,
     suffixIcon: Suffix,
     iconColor,
@@ -62,7 +64,7 @@ export const AppButton = ({
 
     return (
         <button
-            className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+            className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${fullWidth ? "w-full" : ""} ${className}`}
             {...props}
         >
             {Prefix && (

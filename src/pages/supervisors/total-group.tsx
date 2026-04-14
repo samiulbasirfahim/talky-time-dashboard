@@ -5,6 +5,9 @@ import { AppText } from "../../components/text";
 
 export function TotalGroup() {
     return (
+        <div className="p-4">
+
+
         <div className="shadow-border shadow-xs rounded-md w-full space-y-4 p-4">
             <div className="flex justify-between items-center">
                 <AppText variant="header">Total Group</AppText>
@@ -34,6 +37,7 @@ export function TotalGroup() {
                     lightColor={true}
                 />
             </div>
+        </div>
         </div>
     );
 }

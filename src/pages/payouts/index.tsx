@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { HeaderSection } from "../../components/header-section";
+import { PayoutsCards } from "./payouts-cards";
 import { PayoutsTable } from "./payouts-table";
 
 export function Payouts() {
@@ -18,6 +19,8 @@ export function Payouts() {
                     },
                 ]}
             />
+
+            <PayoutsCards />
 
             <div className="p-4">
                 <PayoutsTable />
