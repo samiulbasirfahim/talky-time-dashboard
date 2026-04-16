@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ArrowRight, ExternalLink, History } from "lucide-react";
 import { AppButton } from "../../components/button";
 import { ErrorActionBanner } from "../../components/error-action-banner";
+import { ProfileTrendChart, type ProfileTrendTimeframe } from "../../components/profile-trend-chart";
+import { SegmentedTabBar } from "../../components/segmented-tab-bar";
 import { AppText } from "../../components/text";
 import {
     AppTable,
@@ -175,6 +177,7 @@ const buildProfileColumns = (
 export function ProfileLeftSection() {
     const [profiles, setProfiles] = useState<ProfileRow[]>(INITIAL_PROFILE_ROWS);
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectedTrendTab, setSelectedTrendTab] = useState<ProfileTrendTimeframe>("weekly");
 
     const handleEdit = (row: ProfileRow) => {
         console.log("edit", row);
@@ -234,7 +237,27 @@ export function ProfileLeftSection() {
                 }}
             />
 
-            <section className="rounded-3xl bg-[#F9FBFE] px-6 py-5">
+            <section className="rounded-3xl border border-border bg-bg px-6 py-5 shadow-xs">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                    <AppText variant="smallHeader" className="font-semibold text-text">
+                        Profile Trend Distribution
+                    </AppText>
+                    <SegmentedTabBar
+                        value={selectedTrendTab}
+                        options={[
+                            { label: "Weekly", value: "weekly" },
+                            { label: "Monthly", value: "monthly" },
+                        ]}
+                        onChange={setSelectedTrendTab}
+                    />
+                </div>
+
+                <div className="h-82.5 w-full">
+                    <ProfileTrendChart timeframe={selectedTrendTab} className="h-full w-full" />
+                </div>
+            </section>
+
+            <section className="rounded-3xl bg-[#F9FBFE] px-6 py-5 shadow-xs">
                 <div className="mb-6 flex items-center gap-2.5">
                     <History className="text-text-focus" size={22} strokeWidth={2.2} />
                     <AppText variant="smallHeader" className="font-semibold text-text">

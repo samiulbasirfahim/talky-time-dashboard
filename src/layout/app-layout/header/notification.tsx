@@ -110,7 +110,7 @@ export function Notification() {
                                         <button
                                             key={notification.id}
                                             type="button"
-                                            className="w-full rounded-lg p-3 text-left transition-colors hover:bg-bg-secondary"
+                                            className="w-full cursor-pointer rounded-lg p-3 text-left transition-colors hover:bg-bg-secondary"
                                             onClick={() => handleNotificationClick(notification)}
                                         >
                                             <div className="flex items-start justify-between gap-4">

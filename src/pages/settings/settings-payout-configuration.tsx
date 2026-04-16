@@ -9,7 +9,7 @@ export function SettingsPayoutConfiguration() {
     const [qualificationThreshold, setQualificationThreshold] = React.useState("1000");
 
     return (
-        <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4">
+        <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
             <div className="space-y-1">
                 <div className="flex items-center gap-2">
                     <BadgePercent size={26} className="text-text-muted" />

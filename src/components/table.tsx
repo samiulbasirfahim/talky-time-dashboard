@@ -8,6 +8,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import React from "react";
+import { DeleteConfirmModal } from "./delete-confirm-modal";
 
 export interface TableColumn<T> {
     key: string;
@@ -446,30 +447,51 @@ interface TableActionsProps {
     editIcon?: LucideIcon;
     deleteIcon?: LucideIcon;
 }
+
 export const TableActions = ({
     onEdit,
     onDelete,
     editIcon: EditIcon = SquarePen,
     deleteIcon: DeleteIcon = Trash2,
-}: TableActionsProps) => (
-    <div className="flex items-center justify-end gap-3">
-        {onEdit && (
-            <button
-                onClick={onEdit}
-                className="text-text-focus transition-opacity hover:opacity-60 cursor-pointer"
-                aria-label="Edit"
-            >
-                <EditIcon size={22} />
-            </button>
-        )}
-        {onDelete && (
-            <button
-                onClick={onDelete}
-                className="text-text-muted transition-opacity hover:opacity-60 cursor-pointer"
-                aria-label="Delete"
-            >
-                <DeleteIcon size={22} />
-            </button>
-        )}
-    </div>
-);
+}: TableActionsProps) => {
+    const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+
+    const handleOpenDeleteModal = () => setShowDeleteModal(true);
+    const handleCloseDeleteModal = () => setShowDeleteModal(false);
+
+    const handleConfirmDelete = () => {
+        onDelete?.();
+        setShowDeleteModal(false);
+    };
+
+    return (
+        <>
+            <div className="flex items-center justify-end gap-3">
+                {onEdit && (
+                    <button
+                        onClick={onEdit}
+                        className="text-text-focus transition-opacity hover:opacity-60 cursor-pointer"
+                        aria-label="Edit"
+                    >
+                        <EditIcon size={22} />
+                    </button>
+                )}
+                {onDelete && (
+                    <button
+                        onClick={handleOpenDeleteModal}
+                        className="text-text-muted transition-opacity hover:opacity-60 cursor-pointer"
+                        aria-label="Delete"
+                    >
+                        <DeleteIcon size={22} />
+                    </button>
+                )}
+            </div>
+
+            <DeleteConfirmModal
+                open={showDeleteModal}
+                onCancel={handleCloseDeleteModal}
+                onConfirm={handleConfirmDelete}
+            />
+        </>
+    );
+};

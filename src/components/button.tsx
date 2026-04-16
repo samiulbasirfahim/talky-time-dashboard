@@ -2,7 +2,7 @@ import { type LucideIcon } from "lucide-react";
 import React from "react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: "focus" | "outline" | "ghost" | "danger" | "link";
+    variant?: "focus" | "outline" | "ghost" | "danger" | "link" | "bg";
     size?: "sm" | "md" | "lg"; // Added size prop
     fullWidth?: boolean;
     prefixIcon?: LucideIcon;
@@ -36,6 +36,7 @@ export const AppButton = ({
         danger:
             "bg-bg-danger text-text-danger hover:brightness-95 border border-transparent hover:border-text-danger/20",
         link: "bg-transparent border border-transparent text-text-focus hover:opacity-70",
+        bg: "text-text bg-bg-secondary border border-transparent",
     };
 
     // Size mapping for button padding and text

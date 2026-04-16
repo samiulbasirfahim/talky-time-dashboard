@@ -15,13 +15,14 @@ type SegmentedTabBarProps<T extends string> = {
     tabClassName?: string;
     activeTabClassName?: string;
     inactiveTabClassName?: string;
+    fullWidth?: boolean;
 };
 
 export function SegmentedTabBar<T extends string>({
     value,
     options,
     onChange,
-    wrapperClassName = "mx-auto w-full max-w-70",
+    wrapperClassName = "",
     className = "",
     tabClassName = "",
     activeTabClassName = "bg-tab-focus-bg",

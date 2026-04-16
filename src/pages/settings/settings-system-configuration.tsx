@@ -29,7 +29,7 @@ export function SettingsSystemConfiguration() {
     const [resetDay, setResetDay] = React.useState("day-1");
 
     return (
-        <section className="w-full space-y-4 rounded-md p-4 shadow-border shadow-xs">
+        <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
             <div className="space-y-1">
                 <div className="flex items-center gap-2">
                     <Settings size={26} className="text-text-muted" />

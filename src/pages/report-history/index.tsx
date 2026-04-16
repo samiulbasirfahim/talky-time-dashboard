@@ -2,6 +2,7 @@ import { useState } from "react";
 import { HeaderSection } from "../../components/header-section";
 import { ReportHistoryCards } from "./report-history-cards";
 import { ReportHistoryTable, type ReportHistoryRow } from "./report-history-table";
+import { ReportInfo } from "./report-info";
 
 const PAGE_SIZE = 4;
 
@@ -36,6 +37,8 @@ export function ReportHistory() {
                 buttons={[]}
             />
             <ReportHistoryCards />
+            <ReportInfo />
+
             <div className="p-4">
                 <ReportHistoryTable
                     data={paginatedData}

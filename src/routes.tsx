@@ -17,6 +17,7 @@ import {
     Payouts,
 } from "./pages";
 import { Login } from "./pages/login/login";
+import { ProtectedRoute } from "./layout/protected.layout";
 
 export const routes = createBrowserRouter([
 {
@@ -25,7 +26,11 @@ export const routes = createBrowserRouter([
 },
     {
         path: "/",
-        Component: AppLayout,
+        element: (
+            <ProtectedRoute redirectPath="/login">
+                <AppLayout />
+            </ProtectedRoute>
+        ),
         children: [
             { index: true, Component: Dashboard },
             {

@@ -25,7 +25,7 @@ export function DisciplineIssueWarningSection() {
     return (
         <div className="p-4">
             <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-                <div className="h-fit w-full space-y-5 rounded-md p-4 shadow-border shadow-xs">
+                <div className="h-fit w-full space-y-5 rounded-md p-4 shadow-border shadow-xs  border border-border">
                         <AppText variant="smallHeader" className="font-semibold text-text">
                             Issue Warning
                         </AppText>
@@ -72,7 +72,7 @@ export function DisciplineIssueWarningSection() {
                         </AppButton>
                 </div>
 
-                <div className="h-fit w-full space-y-5 rounded-md p-4 shadow-border shadow-xs">
+                <div className="h-fit w-full space-y-5 rounded-md p-4 shadow-border shadow-xs  border border-border">
                         <AppText variant="smallHeader" className="font-semibold text-text">
                             Reprimand History
                         </AppText>

@@ -18,7 +18,7 @@ export function SettingsShiftSettings() {
     const [nightTimezone, setNightTimezone] = React.useState("7am");
 
     return (
-        <section className="w-full space-y-4 rounded-md p-4 shadow-border shadow-xs">
+              <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
             <div className="space-y-1">
                 <div className="flex items-center gap-2">
                     <SunMoon size={26} className="text-text-muted" />

@@ -8,6 +8,7 @@ type HorizontalStatCardV2Props = {
     descriptionSecs: string;
     value: string | number;
     lightColor: boolean;
+    onDelete?: () => void;
 };
 
 export function HorizontalStatCardV2(props: HorizontalStatCardV2Props) {
@@ -32,9 +33,15 @@ export function HorizontalStatCardV2(props: HorizontalStatCardV2Props) {
                     >
                         {props.value}
                     </AppText>
-                    <AppButton variant="ghost">
-                        <Trash2 className="text-bg-danger" />
-                    </AppButton>
+                    {props.onDelete && (
+                        <AppButton
+                            variant="ghost"
+                            onClick={props.onDelete}
+                            aria-label={`Delete ${props.title}`}
+                        >
+                            <Trash2 className="text-bg-danger" />
+                        </AppButton>
+                    )}
                 </div>
                 <AppText variant="description">
                     {props.description} • {props.descriptionSecs}

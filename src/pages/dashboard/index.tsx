@@ -3,8 +3,10 @@ import { HeaderSection } from "../../components/header-section";
 import { DashboardCards } from "./dashbaord-cards";
 import { PaymentTrends_TotalGroups } from "./payment-trends-total-groups";
 import { RecentActivity_SystemEvents } from "./recent-activity-system-events";
+import { useNavigate } from "react-router";
 
 export function Dashboard() {
+    const navigate = useNavigate();
     const date = new Date();
 
     const formattedDate = date.toLocaleDateString("en-US", {
@@ -29,6 +31,7 @@ export function Dashboard() {
                         icon: Upload,
                         onClick: () => {
                             console.log("Uploading CSV!");
+                            navigate("/csv-upload");
                         },
                     },
                     {

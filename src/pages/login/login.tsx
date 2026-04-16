@@ -3,39 +3,55 @@ import LOGIN_BG from "../../assets/login-bg.png";
 import { Lock } from "lucide-react";
 import { AppButton } from "../../components/button";
 import { Logo } from "../../components/logo";
-import { SegmentedTabBar, type SegmentedTabOption } from "../../components/segmented-tab-bar";
 import { AppText } from "../../components/text";
-import { useNavigate } from "react-router";
-
-const ROLE_OPTIONS: SegmentedTabOption<"admin" | "supervisor">[] = [
-    {
-        value: "admin",
-        label: "Admin",
-    },
-    {
-        value: "supervisor",
-        label: "Supervisor",
-    },
-];
+import { useNavigate, useLocation } from "react-router";
+import toast from "react-hot-toast";
+import { useLogin } from "../../lib/queries";
 
 export function Login() {
-    const [selectedRole, setSelectedRole] = React.useState<"admin" | "supervisor">("admin");
-    const [email, setEmail] = React.useState("info@provistechnologies.com");
+    const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
     const navigate = useNavigate();
-    
+    const location = useLocation();
+
+    const {mutate} = useLogin();
+
+    const from = (location.state as { from?: string })?.from ?? "/dashboard";
+
+
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        navigate("/");
+
+        const emialRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emialRegex.test(email)) {
+            toast.error("Please enter a valid email address.");
+            return;
+        }
+
+        if (password.trim() === "") {
+            toast.error("Please enter your password.");
+            return;
+        }
+
+        mutate({ email, password }, {
+            onSuccess: () => {
+                toast.success("Login successful!");
+                navigate(from, { replace: true });
+            },
+            onError: (error) => {
+                toast.error("Login failed. Please check your credentials and try again.");
+                console.error("Login error: ", error);
+            }
+        });
     };
 
     return (
         <div className="grid h-screen w-screen grid-cols-1 bg-login-image-bg md:grid-cols-3">
-                <div className="hidden bg-login-image-bg md:col-span-2 md:flex md:items-center md:justify-center">
-                    <img src={LOGIN_BG} alt="LOGIN BG" className="w-1/2 contain-content" />
+            <div className="hidden bg-login-image-bg md:col-span-2 md:flex md:items-center md:justify-center">
+                <img src={LOGIN_BG} alt="LOGIN BG" className="w-1/2 contain-content" />
             </div>
-                <div className="flex items-center justify-center bg-white shadow-lg ">
+            <div className="flex items-center justify-center bg-white shadow-lg ">
                 <div className="w-full max-w-md px-6 py-8 sm:px-8 flex flex-col items-center">
                     <Logo hasBorder={false} logo="https://thumbs.dreamstime.com/b/vector-logo-colorful-design-41236752.jpg" subtitle="Multi-Operator" title="Logo Name" />
 
@@ -48,12 +64,6 @@ export function Login() {
                             Role
                         </AppText>
 
-                        <SegmentedTabBar
-                            value={selectedRole}
-                            options={ROLE_OPTIONS}
-                            onChange={setSelectedRole}
-                        />
-
                         <div className="flex flex-col gap-2">
                             <label htmlFor="email" className="text-base text-text-secondary">
                                 Email Id :
@@ -62,6 +72,7 @@ export function Login() {
                                 id="email"
                                 type="email"
                                 value={email}
+                                placeholder="Enter your Email"
                                 onChange={(event) => setEmail(event.target.value)}
                                 className="h-11 rounded-lg border border-border bg-tab-bg px-4 text-sm text-text-secondary outline-none placeholder:text-text-muted focus:border-text-focus focus:bg-white"
                             />

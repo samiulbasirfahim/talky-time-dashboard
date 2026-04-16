@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import {
     Search as SearchIcon,
     LayoutDashboard,
@@ -16,6 +15,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
+import { AppModal } from "../../../components/modal";
 import { AppText } from "../../../components/text";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -141,143 +141,112 @@ export function Search() {
                 />
             </div>
 
-            {/* Modal */}
-            <AnimatePresence>
-                {showModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="fixed inset-0 bg-text/30 backdrop-blur-sm flex items-center justify-center z-50"
-                        onClick={handleClose}
-                    >
-                        {/* Dot grid background */}
-                        <div
-                            className="absolute inset-0 z-0 pointer-events-none"
-                            style={{
-                                backgroundImage: `radial-gradient(circle, var(--color-bg) 1px, transparent 1px)`,
-                                backgroundSize: "8px 8px",
-                                maskImage:
-                                    "radial-gradient(ellipse at center, white, transparent 70%)",
-                                WebkitMaskImage:
-                                    "radial-gradient(ellipse at center, white, transparent 70%)",
-                            }}
-                        />
+            <AppModal
+                open={showModal}
+                onClose={handleClose}
+                ariaLabel="Search resources"
+                contentClassName="max-w-none w-[92vw] p-4 md:w-2/3 lg:w-2/5"
+            >
+                <div className="w-full flex flex-row items-center gap-2 rounded-md px-3 py-2 border border-border focus-within:border-text-secondary transition-colors">
+                    <SearchIcon size={16} className="text-text-muted shrink-0" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        autoFocus
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                if (searchResults.length > 0) {
+                                    navigate(searchResults[0].route);
+                                    handleClose();
+                                }
+                            }
+                        }}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search resources..."
+                        className="border-none outline-none focus:outline-none w-full text-sm"
+                    />
+                    <div className="text-xs font-semibold tracking-wide bg-bg-secondary text-text-secondary px-3 py-1 rounded-md shrink-0 uppercase">
+                        {searchResults.length} results
+                    </div>
+                </div>
 
-                        {/* Card */}
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.97, y: 8 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.97, y: 8 }}
-                            transition={{ duration: 0.2 }}
-                            className="relative p-4 rounded-xl w-2/5 bg-bg border border-border z-50 shadow-lg"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="w-full flex flex-row items-center gap-2 rounded-md px-3 py-2 border border-border focus-within:border-text-secondary transition-colors">
-                                <SearchIcon size={16} className="text-text-muted shrink-0" />
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                            e.preventDefault();
-                                            if (searchResults.length > 0) {
-                                                navigate(searchResults[0].route);
-                                                handleClose();
+                <div className="mt-3 h-72 overflow-y-auto overflow-x-hidden group custom-scrollbar pe-1">
+                    {searchResults.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-sm text-text-muted">
+                            No results found.
+                        </div>
+                    ) : (
+                        searchResults.map((item, index) => {
+                            const Icon = item.icon;
+                            const isFirst = index === 0;
+                            return (
+                                <Link
+                                    to={item.route}
+                                    key={item.route}
+                                    onClick={handleClose}
+                                >
+                                    <div
+                                        className={`
+                                            flex items-center gap-3 px-3 py-3 cursor-pointer
+                                            relative rounded-r-lg group/item transition-colors
+                                            ${isFirst
+                                                ? "bg-bg-focus group-hover:bg-transparent hover:bg-bg-focus!"
+                                                : "hover:bg-bg-focus"
                                             }
-                                        }
-                                        if (e.key === "Escape") handleClose();
-                                    }}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search resources..."
-                                    className="border-none outline-none focus:outline-none w-full text-sm"
-                                />
-                                <div className="text-xs font-semibold tracking-wide bg-bg-secondary text-text-secondary px-3 py-1 rounded-md shrink-0 uppercase">
-                                    {searchResults.length} results
-                                </div>
-                            </div>
+                                        `}
+                                    >
+                                        <div
+                                            className={`
+                                                absolute left-0 top-0 bottom-0 w-1
+                                                bg-btn-primary transition-opacity
+                                                ${isFirst
+                                                    ? "opacity-100 group-hover:opacity-0 group-hover/item:opacity-100!"
+                                                    : "opacity-0 group-hover/item:opacity-100"
+                                                }
+                                            `}
+                                        />
 
-                            <div className="mt-3 h-72 overflow-y-auto overflow-x-hidden group custom-scrollbar pe-1">
-                                {searchResults.length === 0 ? (
-                                    <div className="flex items-center justify-center h-full text-sm text-text-muted">
-                                        No results found.
+                                        {/* Icon box */}
+                                        <div
+                                            className={`
+                                                shrink-0 flex items-center justify-center
+                                                h-10 w-10 rounded-lg transition-colors
+                                                ${isFirst
+                                                    ? "bg-btn-primary text-btn-primary-text group-hover:bg-bg-secondary group-hover:text-text-secondary group-hover/item:bg-btn-primary! group-hover/item:text-btn-primary-text!"
+                                                    : "bg-bg-secondary text-text-secondary group-hover/item:bg-btn-primary group-hover/item:text-btn-primary-text"
+                                                }
+                                            `}
+                                        >
+                                            <Icon size={18} />
+                                        </div>
+
+                                        <div className="flex flex-col flex-1 min-w-0">
+                                            <AppText variant="body" className="font-semibold">
+                                                {item.title}
+                                            </AppText>
+                                            <AppText variant="description">
+                                                {item.description}
+                                            </AppText>
+                                        </div>
+
+                                        <ChevronRight
+                                            size={16}
+                                            className={`
+                                                shrink-0 transition-colors
+                                                ${isFirst
+                                                    ? "text-text-focus group-hover:text-text-muted group-hover/item:text-text-focus!"
+                                                    : "text-text-muted group-hover/item:text-text-focus"
+                                                }
+                                            `}
+                                        />
                                     </div>
-                                ) : (
-                                    searchResults.map((item, index) => {
-                                        const Icon = item.icon;
-                                        const isFirst = index === 0;
-                                        return (
-                                            <Link
-                                                to={item.route}
-                                                key={item.route}
-                                                onClick={handleClose}
-                                            >
-                                                <div
-                                                    className={`
-                                                        flex items-center gap-3 px-3 py-3 cursor-pointer
-                                                        relative rounded-r-lg group/item transition-colors
-                                                        ${isFirst
-                                                            ? "bg-bg-focus group-hover:bg-transparent hover:bg-bg-focus!"
-                                                            : "hover:bg-bg-focus"
-                                                        }
-                                                    `}
-                                                >
-                                                    <div
-                                                        className={`
-                                                            absolute left-0 top-0 bottom-0 w-1
-                                                            bg-btn-primary transition-opacity
-                                                            ${isFirst
-                                                                ? "opacity-100 group-hover:opacity-0 group-hover/item:opacity-100!"
-                                                                : "opacity-0 group-hover/item:opacity-100"
-                                                            }
-                                                        `}
-                                                    />
-
-                                                    {/* Icon box */}
-                                                    <div
-                                                        className={`
-                                                            shrink-0 flex items-center justify-center
-                                                            h-10 w-10 rounded-lg transition-colors
-                                                            ${isFirst
-                                                                ? "bg-btn-primary text-btn-primary-text group-hover:bg-bg-secondary group-hover:text-text-secondary group-hover/item:bg-btn-primary! group-hover/item:text-btn-primary-text!"
-                                                                : "bg-bg-secondary text-text-secondary group-hover/item:bg-btn-primary group-hover/item:text-btn-primary-text"
-                                                            }
-                                                        `}
-                                                    >
-                                                        <Icon size={18} />
-                                                    </div>
-
-                                                    <div className="flex flex-col flex-1 min-w-0">
-                                                        <AppText variant="body" className="font-semibold">
-                                                            {item.title}
-                                                        </AppText>
-                                                        <AppText variant="description">
-                                                            {item.description}
-                                                        </AppText>
-                                                    </div>
-
-                                                    <ChevronRight
-                                                        size={16}
-                                                        className={`
-                                                            shrink-0 transition-colors
-                                                            ${isFirst
-                                                                ? "text-text-focus group-hover:text-text-muted group-hover/item:text-text-focus!"
-                                                                : "text-text-muted group-hover/item:text-text-focus"
-                                                            }
-                                                        `}
-                                                    />
-                                                </div>
-                                            </Link>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                </Link>
+                            );
+                        })
+                    )}
+                </div>
+            </AppModal>
         </>
     );
 }

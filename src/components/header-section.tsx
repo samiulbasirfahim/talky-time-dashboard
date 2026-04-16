@@ -26,6 +26,8 @@ export function HeaderSection({ title, description, buttons }: Props) {
                     <AppButton
                         variant={index % 2 === 0 ? "focus" : "outline"}
                         prefixIcon={button.icon}
+                        onClick={button.onClick}
+                        key={index}
                     >
                         {button.label}
                     </AppButton>
