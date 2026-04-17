@@ -5,13 +5,15 @@ import { AppText } from "./text";
 interface DeleteConfirmModalProps {
     open: boolean;
     onCancel: () => void;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
     title?: string;
     description?: string;
     confirmText?: string;
+    confirmLoadingText?: string;
     cancelText?: string;
     ariaLabel?: string;
     contentClassName?: string;
+    isConfirming?: boolean;
 }
 
 export function DeleteConfirmModal({
@@ -21,14 +23,16 @@ export function DeleteConfirmModal({
     title = "Delete this row?",
     description = "This action cannot be undone.",
     confirmText = "Confirm",
+    confirmLoadingText = "Deleting...",
     cancelText = "Cancel",
     ariaLabel = "Confirm delete",
     contentClassName = "max-w-sm p-5",
+    isConfirming = false,
 }: DeleteConfirmModalProps) {
     return (
         <AppModal
             open={open}
-            onClose={onCancel}
+            onClose={isConfirming ? () => { } : onCancel}
             ariaLabel={ariaLabel}
             contentClassName={contentClassName}
         >
@@ -45,6 +49,7 @@ export function DeleteConfirmModal({
                     onClick={onCancel}
                     variant="outline"
                     size="sm"
+                    disabled={isConfirming}
                 >
                     {cancelText}
                 </AppButton>
@@ -53,6 +58,8 @@ export function DeleteConfirmModal({
                     onClick={onConfirm}
                     variant="danger"
                     size="sm"
+                    isLoading={isConfirming}
+                    loadingLabel={confirmLoadingText}
                 >
                     {confirmText}
                 </AppButton>

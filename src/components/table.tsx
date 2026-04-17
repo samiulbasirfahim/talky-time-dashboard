@@ -443,7 +443,7 @@ export const TableStatus = ({ status, label }: TableStatusProps) => {
 
 interface TableActionsProps {
     onEdit?: () => void;
-    onDelete?: () => void;
+    onDelete?: () => void | Promise<void>;
     editIcon?: LucideIcon;
     deleteIcon?: LucideIcon;
 }
@@ -455,13 +455,29 @@ export const TableActions = ({
     deleteIcon: DeleteIcon = Trash2,
 }: TableActionsProps) => {
     const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+    const [isDeleting, setIsDeleting] = React.useState(false);
 
     const handleOpenDeleteModal = () => setShowDeleteModal(true);
-    const handleCloseDeleteModal = () => setShowDeleteModal(false);
-
-    const handleConfirmDelete = () => {
-        onDelete?.();
+    const handleCloseDeleteModal = () => {
+        if (isDeleting) {
+            return;
+        }
         setShowDeleteModal(false);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!onDelete) {
+            setShowDeleteModal(false);
+            return;
+        }
+
+        try {
+            setIsDeleting(true);
+            await onDelete();
+            setShowDeleteModal(false);
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     return (
@@ -479,6 +495,7 @@ export const TableActions = ({
                 {onDelete && (
                     <button
                         onClick={handleOpenDeleteModal}
+                        disabled={isDeleting}
                         className="text-text-muted transition-opacity hover:opacity-60 cursor-pointer"
                         aria-label="Delete"
                     >
@@ -491,6 +508,8 @@ export const TableActions = ({
                 open={showDeleteModal}
                 onCancel={handleCloseDeleteModal}
                 onConfirm={handleConfirmDelete}
+                isConfirming={isDeleting}
+                confirmLoadingText="Deleting..."
             />
         </>
     );

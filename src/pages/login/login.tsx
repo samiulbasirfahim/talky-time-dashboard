@@ -16,7 +16,7 @@ export function Login() {
 
     const {mutate} = useLogin();
 
-    const from = (location.state as { from?: string })?.from ?? "/dashboard";
+    const from = (location.state as { from?: string })?.from ?? "/";
 
 
 
@@ -60,9 +60,6 @@ export function Login() {
                     </AppText>
 
                     <form onSubmit={handleSubmit} className="mt-8 flex w-full flex-col gap-5">
-                        <AppText variant="smallHeader" className="text-center text-text-secondary">
-                            Role
-                        </AppText>
 
                         <div className="flex flex-col gap-2">
                             <label htmlFor="email" className="text-base text-text-secondary">

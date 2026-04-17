@@ -1,5 +1,7 @@
+import React from "react";
 import { ArrowRight } from "lucide-react";
 import { AppButton } from "../../components/button";
+import { AppDropdown } from "../../components/dropdown";
 import { AppText } from "../../components/text";
 
 type ReprimandHistoryRow = {
@@ -21,7 +23,19 @@ const REPRIMAND_HISTORY: ReprimandHistoryRow[] = [
     },
 ];
 
+const OPERATOR_OPTIONS = [
+    { value: "", label: "Select operator..." },
+    { value: "#001|Sofia_P", label: "#001 - Sofia_P" },
+    { value: "#002|Luna_", label: "#002 - Luna_" },
+    { value: "#003|Aria 35", label: "#003 - Aria 35" },
+    { value: "#004|Mira_9", label: "#004 - Mira_9" },
+    { value: "#005|Nico_2", label: "#005 - Nico_2" },
+    { value: "#006|Reza_1", label: "#006 - Reza_1" },
+];
+
 export function DisciplineIssueWarningSection() {
+    const [selectedOperator, setSelectedOperator] = React.useState("");
+
     return (
         <div className="p-4">
             <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
@@ -35,10 +49,11 @@ export function DisciplineIssueWarningSection() {
                                 <AppText variant="description" className="text-xs font-bold uppercase tracking-[0.14em] text-text-secondary">
                                     Operator ID / Name
                                 </AppText>
-                                <input
-                                    type="text"
-                                    placeholder="Select operator..."
-                                    className="h-11 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text-secondary outline-none placeholder:text-text-muted focus:border-text-focus focus:bg-white"
+                                <AppDropdown
+                                    value={selectedOperator}
+                                    options={OPERATOR_OPTIONS}
+                                    onChange={setSelectedOperator}
+                                    className="h-11 px-4"
                                 />
                             </div>
 

@@ -1,9 +1,12 @@
 import { UserPlus } from "lucide-react";
 import { HeaderSection } from "../../components/header-section";
+import { useAppModal } from "../../hooks/useAppModal";
 import { ProfileCards } from "./profile-cards";
 import { ProfileTableAssignProfile } from "./profile-table-assign-profile";
 
 export function Profile() {
+    const createProfileModal = useAppModal();
+
     return (
         <>
             <HeaderSection
@@ -13,14 +16,15 @@ export function Profile() {
                     {
                         label: "Create Profile",
                         icon: UserPlus,
-                        onClick: () => {
-                            console.log("Pressed Assign Profile!");
-                        },
+                        onClick: createProfileModal.openModal,
                     },
                 ]}
             />
             <ProfileCards />
-            <ProfileTableAssignProfile />
+            <ProfileTableAssignProfile
+                isCreateProfileModalOpen={createProfileModal.isOpen}
+                onCloseCreateProfileModal={createProfileModal.closeModal}
+            />
         </>
     );
 }

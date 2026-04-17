@@ -1,5 +1,5 @@
 // screens/SupervisorsScreen.tsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
     AppTable,
     TableActions,
@@ -8,94 +8,48 @@ import {
     TableIdentity,
     type TableColumn,
 } from "../../components/table";
+import { SUPERVISORS_PAGE_LIMIT, usePaginatedSupervisors } from "../../lib/queries";
+import type { SupervisorResponse } from "../../type";
 
-interface Supervisor {
-    id: string;
+interface SupervisorRow {
+    id: number;
+    supervisorId: string;
     name: string;
     group: string;
     groupColor: string;
     operators: number;
+    supervisor: SupervisorResponse;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+interface SupervisorsTableProps {
+    onEditSupervisor?: (supervisor: SupervisorResponse) => void;
+    onDeleteSupervisor?: (id: number) => void;
+}
 
-const GROUP_COLORS: Record<string, string> = {
-    Medellin: "var(--color-purple)",
-    Bogota: "#3b82f6",
-    Cali: "var(--color-green)",
-};
-
-const INITIAL_DATA: Supervisor[] = [
-    {
-        id: "#0001",
-        name: "Rasel Jr.",
-        group: "Medellin",
-        groupColor: GROUP_COLORS.Medellin,
-        operators: 12,
-    },
-    {
-        id: "#0002",
-        name: "Saruf Sr.",
-        group: "Bogota",
-        groupColor: GROUP_COLORS.Bogota,
-        operators: 24,
-    },
-    {
-        id: "#0003",
-        name: "Saruf Sr.",
-        group: "Bogota",
-        groupColor: GROUP_COLORS.Bogota,
-        operators: 6,
-    },
-    {
-        id: "#0004",
-        name: "Saruf Sr.",
-        group: "Bogota",
-        groupColor: GROUP_COLORS.Bogota,
-        operators: 14,
-    },
-    {
-        id: "#0005",
-        name: "Rasel Jr.",
-        group: "Cali",
-        groupColor: GROUP_COLORS.Cali,
-        operators: 9,
-    },
-    {
-        id: "#0006",
-        name: "Saruf Sr.",
-        group: "Medellin",
-        groupColor: GROUP_COLORS.Medellin,
-        operators: 18,
-    },
-    {
-        id: "#0007",
-        name: "Rasel Jr.",
-        group: "Bogota",
-        groupColor: GROUP_COLORS.Bogota,
-        operators: 31,
-    },
-    {
-        id: "#0008",
-        name: "Saruf Sr.",
-        group: "Cali",
-        groupColor: GROUP_COLORS.Cali,
-        operators: 7,
-    },
-];
-
-const PAGE_SIZE = 4;
+function mapGroupColor(groupName: string): string {
+    const normalized = groupName.toLowerCase();
+    if (normalized.includes("medellin")) {
+        return "var(--color-purple)";
+    }
+    if (normalized.includes("bogota")) {
+        return "#3b82f6";
+    }
+    if (normalized.includes("cali")) {
+        return "var(--color-green)";
+    }
+    return "var(--color-text-muted)";
+}
 
 // ─── Column Definitions ───────────────────────────────────────────────────────
 
 const buildColumns = (
-    onEdit: (row: Supervisor) => void,
-    onDelete: (id: string) => void,
-): TableColumn<Supervisor>[] => [
+    onEdit: (row: SupervisorRow) => void,
+    onDelete: (id: number) => void,
+): TableColumn<SupervisorRow>[] => [
         {
             key: "name",
             header: "Supervisor",
-            render: (row) => <TableIdentity name={row.name} sub={`ID: ${row.id}`} />,
+            render: (row) => <TableIdentity name={row.name} sub={`ID: ${row.supervisorId}`} />,
         },
         {
             key: "group",
@@ -124,42 +78,52 @@ const buildColumns = (
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const SupervisorsTable = () => {
-    const [supervisors, setSupervisors] = useState<Supervisor[]>(INITIAL_DATA);
+export const SupervisorsTable = ({ onEditSupervisor, onDeleteSupervisor }: SupervisorsTableProps) => {
     const [currentPage, setCurrentPage] = useState(1);
+    const {
+        data: paginatedData,
+        isPending,
+        isError,
+    } = usePaginatedSupervisors(currentPage);
 
-    const handleEdit = (row: Supervisor) => {
-        console.log("edit", row);
+    const supervisors = useMemo<SupervisorRow[]>(() => {
+        return (paginatedData?.results ?? []).map((supervisor: SupervisorResponse) => ({
+            id: supervisor.id,
+            supervisorId: supervisor.supervisor_id,
+            name: supervisor.supervisor_name || supervisor.name,
+            group: supervisor.group_name,
+            groupColor: mapGroupColor(supervisor.group_name),
+            operators: supervisor.operators_count,
+            supervisor,
+        }));
+    }, [paginatedData]);
+
+    const handleEdit = (row: SupervisorRow) => {
+        onEditSupervisor?.(row.supervisor);
     };
 
-    const handleDelete = (id: string) => {
-        setSupervisors((prev) => {
-            const updated = prev.filter((s) => s.id !== id);
-            // If deleting the last item on the current page, step back one page
-            const newTotalPages = Math.max(1, Math.ceil(updated.length / PAGE_SIZE));
-            if (currentPage > newTotalPages) setCurrentPage(newTotalPages);
-            return updated;
-        });
+    const handleDelete = (id: number) => {
+        onDeleteSupervisor?.(id);
     };
-
-    const paginatedData = supervisors.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE,
-    );
 
     const columns = buildColumns(handleEdit, handleDelete);
+    const emptyText = isPending
+        ? "Loading supervisors..."
+        : isError
+            ? "Failed to load supervisors."
+            : "No supervisors found.";
 
     return (
         <div className="p-4">
             <AppTable
                 columns={columns}
-                data={paginatedData}
-                rowKey={(r) => r.id}
-                emptyText="No supervisors found."
+                data={supervisors}
+                rowKey={(r) => String(r.id)}
+                emptyText={emptyText}
                 pagination={{
                     currentPage,
-                    totalItems: supervisors.length,
-                    pageSize: PAGE_SIZE,
+                    totalItems: paginatedData?.total_supervisors ?? paginatedData?.count ?? 0,
+                    pageSize: SUPERVISORS_PAGE_LIMIT,
                     onPageChange: setCurrentPage,
                     itemLabel: "supervisors",
                 }}

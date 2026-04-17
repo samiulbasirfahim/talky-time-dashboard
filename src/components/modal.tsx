@@ -64,7 +64,7 @@ export const AppModal = ({
                             style={{
                                 backgroundImage:
                                     "radial-gradient(circle, var(--color-bg) 1px, transparent 1px)",
-                                backgroundSize: "8px 8px",
+                                backgroundSize: "4px 4px",
                                 maskImage:
                                     "radial-gradient(ellipse at center, white, transparent 70%)",
                                 WebkitMaskImage:
@@ -81,7 +81,7 @@ export const AppModal = ({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.97, y: 8 }}
                         transition={{ duration: 0.2 }}
-                        className={`relative z-10 w-full max-w-lg rounded-xl border border-border bg-bg shadow-lg ${contentClassName}`}
+                        className={`relative z-10 w-full max-w-lg rounded-xl border border-border bg-bg shadow-2xl ${contentClassName}`}
                         onClick={(event) => event.stopPropagation()}
                     >
                         {showX && (

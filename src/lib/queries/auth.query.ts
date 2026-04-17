@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { LoginPayload } from "../../type";
+import type { LoginPayload, LoginResponse, MeResponse } from "../../type";
 import { apiClient } from "../axios";
 import { authKeys } from "./keys";
 import { useAuthStore } from "../store/auth.store";
@@ -7,7 +7,9 @@ import { useAuthStore } from "../store/auth.store";
 export function useLogin() {
     return useMutation({
         mutationFn: (payload: LoginPayload) => {
-            return apiClient.post("/accounts/login/", payload, { unprotected: true });
+            return apiClient.post<LoginResponse>("/accounts/login/", payload, {
+                unprotected: true,
+            });
         },
         onSuccess: (data) => {
             const { access, refresh } = data.data;
@@ -15,16 +17,21 @@ export function useLogin() {
             // localStorage.setItem("refreshToken", refresh);
             useAuthStore.getState().setAccessToken(access);
             useAuthStore.getState().setRefreshToken(refresh);
-        }
-    })
+        },
+    });
 }
 
-export function useMe() {
+type UseMeOptions = {
+    enabled?: boolean;
+};
+
+export function useMe(options?: UseMeOptions) {
     const response = useQuery({
         queryKey: authKeys.me(),
-        queryFn: () => apiClient.get("/accounts/me/"),
+        queryFn: () => apiClient.get<MeResponse>("/accounts/me/"),
         retry: false,
-    })
+        enabled: options?.enabled ?? true,
+    });
 
 
     return {
@@ -33,20 +40,20 @@ export function useMe() {
 }
 
 export function useLogout() {
-    const refreshToken = useAuthStore((state) => state.refreshToken);
-
-    if (!refreshToken) {
-        throw new Error("No refresh token found. User might not be logged in.");
-    }
-
     return useMutation({
         mutationFn: () => {
+            const refreshToken = useAuthStore.getState().refreshToken;
+
+            if (!refreshToken) {
+                return Promise.resolve(null);
+            }
+
             return apiClient.post("/accounts/logout/", { refresh: refreshToken });
         },
         onSuccess: () => {
             useAuthStore.getState().clearTokens();
         }
-    })
+    });
 }
 
 export function useInitializeAuth() {
@@ -55,5 +62,5 @@ export function useInitializeAuth() {
     return {
         user: data?.data,
         isLoading,
-    }
+    };
 }

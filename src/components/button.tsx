@@ -9,7 +9,24 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     suffixIcon?: LucideIcon;
     iconColor?: string;
     iconBg?: string;
+    isLoading?: boolean;
+    loadingLabel?: string;
 }
+
+const LoadingSpinner = ({ size }: { size: "sm" | "md" | "lg" }) => {
+    const spinnerSizes: Record<"sm" | "md" | "lg", string> = {
+        sm: "h-3 w-3",
+        md: "h-4 w-4",
+        lg: "h-5 w-5",
+    };
+
+    return (
+        <span
+            className={`inline-block animate-spin rounded-full border-2 border-current border-t-transparent ${spinnerSizes[size]}`}
+            aria-hidden="true"
+        />
+    );
+};
 
 export const AppButton = ({
     children,
@@ -20,7 +37,10 @@ export const AppButton = ({
     suffixIcon: Suffix,
     iconColor,
     iconBg,
+    isLoading = false,
+    loadingLabel,
     className = "",
+    disabled,
     ...props
 }: ButtonProps) => {
     // Base alignment and transition styles
@@ -66,9 +86,10 @@ export const AppButton = ({
     return (
         <button
             className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${fullWidth ? "w-full" : ""} ${className}`}
+            disabled={disabled || isLoading}
             {...props}
         >
-            {Prefix && (
+            {!isLoading && Prefix && (
                 <Prefix
                     size={iconSizes[size]}
                     className={children ? "mr-2" : ""}
@@ -76,9 +97,15 @@ export const AppButton = ({
                 />
             )}
 
-            {children && <span>{children}</span>}
+            {isLoading && (
+                <span className="mr-2 inline-flex">
+                    <LoadingSpinner size={size} />
+                </span>
+            )}
 
-            {Suffix && (
+            {(children || isLoading) && <span>{isLoading ? (loadingLabel ?? children) : children}</span>}
+
+            {!isLoading && Suffix && (
                 <Suffix
                     size={iconSizes[size]}
                     className={children ? "ml-2" : ""}

@@ -26,7 +26,7 @@ export function SegmentedTabBar<T extends string>({
     className = "",
     tabClassName = "",
     activeTabClassName = "bg-tab-focus-bg",
-    inactiveTabClassName = "hover:bg-white/60",
+    inactiveTabClassName = "hover:bg-white/60 bg-tab-bg",
 }: SegmentedTabBarProps<T>) {
     return (
         <div className={wrapperClassName}>

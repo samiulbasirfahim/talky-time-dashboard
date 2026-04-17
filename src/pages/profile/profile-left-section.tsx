@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowRight, ExternalLink, History } from "lucide-react";
 import { AppButton } from "../../components/button";
 import { ErrorActionBanner } from "../../components/error-action-banner";
 import { ProfileTrendChart, type ProfileTrendTimeframe } from "../../components/profile-trend-chart";
 import { SegmentedTabBar } from "../../components/segmented-tab-bar";
 import { AppText } from "../../components/text";
+import { useAppModal } from "../../hooks/useAppModal";
+import {
+    ProfileFormModal,
+    type BonusPercentage,
+    type ProfileFormValues,
+} from "./profile-form-modal";
 import {
     AppTable,
     TableActions,
@@ -16,6 +22,7 @@ type ProfileRow = {
     name: string;
     threshold: string;
     operator: string;
+    supervisorName?: string;
     isAssigned: boolean;
     monEarning: string;
 };
@@ -33,6 +40,7 @@ const INITIAL_PROFILE_ROWS: ProfileRow[] = [
         name: "Sofia_VIP",
         threshold: "25%",
         operator: "Akash.65",
+        supervisorName: "Saruf Sr.",
         isAssigned: true,
         monEarning: "Cop$ 2,155",
     },
@@ -41,6 +49,7 @@ const INITIAL_PROFILE_ROWS: ProfileRow[] = [
         name: "Luna_Pre",
         threshold: "21%",
         operator: "Unassigned",
+        supervisorName: "",
         isAssigned: false,
         monEarning: "Cop$ 2,155",
     },
@@ -49,6 +58,7 @@ const INITIAL_PROFILE_ROWS: ProfileRow[] = [
         name: "Aria_Elite",
         threshold: "25%",
         operator: "Unassigned",
+        supervisorName: "",
         isAssigned: false,
         monEarning: "Cop$ 2,155",
     },
@@ -57,22 +67,25 @@ const INITIAL_PROFILE_ROWS: ProfileRow[] = [
         name: "Diamond_ELT",
         threshold: "21%",
         operator: "Julian.m",
+        supervisorName: "",
         isAssigned: true,
         monEarning: "Cop$ 2,155",
     },
     {
         profileId: "#DB-5-7",
         name: "Nova_Core",
-        threshold: "23%",
+        threshold: "21%",
         operator: "Hasan.11",
+        supervisorName: "",
         isAssigned: true,
         monEarning: "Cop$ 2,090",
     },
     {
         profileId: "#DB-7-3",
         name: "Luma_Gold",
-        threshold: "22%",
+        threshold: "21%",
         operator: "Unassigned",
+        supervisorName: "",
         isAssigned: false,
         monEarning: "Cop$ 1,980",
     },
@@ -81,6 +94,7 @@ const INITIAL_PROFILE_ROWS: ProfileRow[] = [
         name: "Orion_Max",
         threshold: "25%",
         operator: "Rafi.22",
+        supervisorName: "",
         isAssigned: true,
         monEarning: "Cop$ 2,210",
     },
@@ -174,13 +188,29 @@ const buildProfileColumns = (
         },
     ];
 
-export function ProfileLeftSection() {
+interface ProfileLeftSectionProps {
+    isCreateProfileModalOpen: boolean;
+    onCloseCreateProfileModal: () => void;
+}
+
+export function ProfileLeftSection({
+    isCreateProfileModalOpen,
+    onCloseCreateProfileModal,
+}: ProfileLeftSectionProps) {
     const [profiles, setProfiles] = useState<ProfileRow[]>(INITIAL_PROFILE_ROWS);
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedTrendTab, setSelectedTrendTab] = useState<ProfileTrendTimeframe>("weekly");
+    const {
+        isOpen: isEditProfileModalOpen,
+        openModal: openEditProfileModal,
+        closeModal: closeEditProfileModal,
+    } = useAppModal();
+    const [editingProfile, setEditingProfile] = useState<ProfileRow | null>(null);
+    const isProfileModalOpen = isCreateProfileModalOpen || isEditProfileModalOpen;
 
     const handleEdit = (row: ProfileRow) => {
-        console.log("edit", row);
+        setEditingProfile(row);
+        openEditProfileModal();
     };
 
     const handleDelete = (profileId: string) => {
@@ -191,6 +221,73 @@ export function ProfileLeftSection() {
             return updated;
         });
     };
+
+    const handleCloseProfileModal = () => {
+        closeEditProfileModal();
+        onCloseCreateProfileModal();
+        setEditingProfile(null);
+    };
+
+    const handleSubmitProfile = (values: ProfileFormValues) => {
+        const isDetailsMode = Boolean(editingProfile);
+
+        if (isDetailsMode && editingProfile) {
+            setProfiles((prev) =>
+                prev.map((profile) => {
+                    if (profile.profileId !== editingProfile.profileId) {
+                        return profile;
+                    }
+
+                    return {
+                        ...profile,
+                        profileId: values.profileId,
+                        name: values.profileName,
+                        threshold: values.bonusPercentage,
+                        supervisorName: values.supervisorName || "",
+                    };
+                }),
+            );
+            handleCloseProfileModal();
+            return;
+        }
+
+        const nextId = values.profileId || `#DB-${profiles.length + 1}-1`;
+        const operatorName = values.operatorId.trim();
+
+        const nextProfile: ProfileRow = {
+            profileId: nextId,
+            name: values.profileName,
+            threshold: values.bonusPercentage,
+            operator: operatorName || "Unassigned",
+            supervisorName: values.supervisorName || "",
+            isAssigned: Boolean(operatorName),
+            monEarning: "Cop$ 0",
+        };
+
+        setProfiles((prev) => [nextProfile, ...prev]);
+        setCurrentPage(1);
+        handleCloseProfileModal();
+    };
+
+    const profileIdOptions = useMemo(
+        () => [
+            { value: "", label: "Enter Profile Id" },
+            ...profiles.map((profile) => ({
+                value: profile.profileId,
+                label: profile.profileId,
+            })),
+        ],
+        [profiles],
+    );
+
+    const modalDefaultValues: Partial<ProfileFormValues> | undefined = editingProfile
+        ? {
+            profileName: editingProfile.name,
+            profileId: editingProfile.profileId,
+            bonusPercentage: editingProfile.threshold as BonusPercentage,
+            supervisorName: editingProfile.supervisorName || "",
+        }
+        : undefined;
 
     const paginatedData = profiles.slice(
         (currentPage - 1) * PAGE_SIZE,
@@ -292,6 +389,14 @@ export function ProfileLeftSection() {
                     ))}
                 </div>
             </section>
+
+            <ProfileFormModal
+                open={isProfileModalOpen}
+                onClose={handleCloseProfileModal}
+                onSubmit={handleSubmitProfile}
+                defaultValues={modalDefaultValues}
+                profileIdOptions={profileIdOptions}
+            />
         </div>
     );
 }

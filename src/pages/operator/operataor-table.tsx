@@ -1,5 +1,5 @@
 // screens/OperatorsTable.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import {
     AppTable,
@@ -13,7 +13,7 @@ import {
 } from "../../components/table";
 import { AppText } from "../../components/text";
 
-type ShiftType = "day" | "night";
+export type ShiftType = "day" | "night";
 type StatusVariant = "active" | "inactive" | "pending";
 
 interface ActiveProfile {
@@ -21,24 +21,26 @@ interface ActiveProfile {
     color?: string;
 }
 
-interface Operator {
+export interface Operator {
     id: string;
     name: string;
     group: string;
     groupColor: "blue" | "blue-light" | "gray";
     shift: ShiftType;
+    supervisorName?: string;
     activeProfiles: ActiveProfile[];
     totalBonuses: number;
     status: StatusVariant;
 }
 
-const INITIAL_DATA: Operator[] = [
+export const INITIAL_OPERATOR_DATA: Operator[] = [
     {
         id: "OP-9421",
         name: "Elena Rodriguez",
         group: "Medellin",
         groupColor: "blue",
         shift: "day",
+        supervisorName: "Saruf Sr.",
         activeProfiles: [
             { initials: "A", color: "#3b5bdb" },
             { initials: "B", color: "#f59f00" },
@@ -54,6 +56,7 @@ const INITIAL_DATA: Operator[] = [
         group: "Bogota",
         groupColor: "blue-light",
         shift: "night",
+        supervisorName: "Rasel Jr.",
         activeProfiles: [{ initials: "1", color: "#adb5bd" }],
         totalBonuses: 850,
         status: "inactive",
@@ -64,6 +67,7 @@ const INITIAL_DATA: Operator[] = [
         group: "Remote",
         groupColor: "gray",
         shift: "day",
+        supervisorName: "",
         activeProfiles: [
             { initials: "A", color: "#3b5bdb" },
             { initials: "F", color: "#e67700" },
@@ -77,6 +81,7 @@ const INITIAL_DATA: Operator[] = [
         group: "Medellin",
         groupColor: "blue",
         shift: "night",
+        supervisorName: "Sharuf Sr.",
         activeProfiles: [{ initials: "C", color: "#3b5bdb" }],
         totalBonuses: 1100,
         status: "active",
@@ -87,6 +92,7 @@ const INITIAL_DATA: Operator[] = [
         group: "Bogota",
         groupColor: "blue-light",
         shift: "day",
+        supervisorName: "",
         activeProfiles: [
             { initials: "A", color: "#3b5bdb" },
             { initials: "B", color: "#f59f00" },
@@ -101,6 +107,7 @@ const INITIAL_DATA: Operator[] = [
         group: "Remote",
         groupColor: "gray",
         shift: "night",
+        supervisorName: "",
         activeProfiles: [{ initials: "J", color: "#c2255c" }],
         totalBonuses: 640,
         status: "pending",
@@ -182,22 +189,29 @@ const buildColumns = (
         },
     ];
 
-export const OperatorsTable = () => {
-    const [operators, setOperators] = useState<Operator[]>(INITIAL_DATA);
+interface OperatorsTableProps {
+    operators: Operator[];
+    onEditOperator: (row: Operator) => void;
+    onDeleteOperator: (id: string) => void;
+}
+
+export const OperatorsTable = ({
+    operators,
+    onEditOperator,
+    onDeleteOperator,
+}: OperatorsTableProps) => {
     const [currentPage, setCurrentPage] = useState(1);
 
-    const handleEdit = (row: Operator) => {
-        console.log("edit", row);
-    };
+    useEffect(() => {
+        const totalPages = Math.max(1, Math.ceil(operators.length / PAGE_SIZE));
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, operators.length]);
 
-    const handleDelete = (id: string) => {
-        setOperators((prev) => {
-            const updated = prev.filter((o) => o.id !== id);
-            const newTotalPages = Math.max(1, Math.ceil(updated.length / PAGE_SIZE));
-            if (currentPage > newTotalPages) setCurrentPage(newTotalPages);
-            return updated;
-        });
-    };
+    const handleEdit = (row: Operator) => onEditOperator(row);
+
+    const handleDelete = (id: string) => onDeleteOperator(id);
 
     const paginatedData = operators.slice(
         (currentPage - 1) * PAGE_SIZE,

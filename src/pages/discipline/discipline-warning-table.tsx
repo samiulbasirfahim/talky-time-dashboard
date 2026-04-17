@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppButton } from "../../components/button";
+import { DeleteConfirmModal } from "../../components/delete-confirm-modal";
 import { AppTable, type TableColumn } from "../../components/table";
 import { AppText } from "../../components/text";
 
@@ -86,7 +87,9 @@ function WarningCountCell({ value }: { value: number }) {
     );
 }
 
-const WARNING_COLUMNS: TableColumn<DisciplineWarningRow>[] = [
+const buildWarningColumns = (
+    onRequestRevoke: (warningId: string) => void,
+): TableColumn<DisciplineWarningRow>[] => [
     {
         key: "id",
         header: "ID",
@@ -126,9 +129,7 @@ const WARNING_COLUMNS: TableColumn<DisciplineWarningRow>[] = [
                 variant="link"
                 size="sm"
                 className="p-0 text-sm font-semibold"
-                onClick={() => {
-                    console.log("Revoke warning", row.id);
-                }}
+                onClick={() => onRequestRevoke(row.id)}
             >
                 Revoke
             </AppButton>
@@ -137,36 +138,80 @@ const WARNING_COLUMNS: TableColumn<DisciplineWarningRow>[] = [
 ];
 
 export function DisciplineWarningTable() {
+    const [warnings, setWarnings] = useState<DisciplineWarningRow[]>(MOCK_WARNING_ROWS);
     const [currentPage, setCurrentPage] = useState(1);
+    const [warningIdToRevoke, setWarningIdToRevoke] = useState<string | null>(null);
 
-    const paginatedData = MOCK_WARNING_ROWS.slice(
+    const warningToRevoke = warnings.find((row) => row.id === warningIdToRevoke);
+
+    const handleRequestRevoke = (warningId: string) => {
+        setWarningIdToRevoke(warningId);
+    };
+
+    const handleCloseRevokeModal = () => {
+        setWarningIdToRevoke(null);
+    };
+
+    const handleConfirmRevoke = () => {
+        if (!warningIdToRevoke) {
+            return;
+        }
+
+        setWarnings((prev) => {
+            const updated = prev.filter((row) => row.id !== warningIdToRevoke);
+            const totalPages = Math.max(1, Math.ceil(updated.length / PAGE_SIZE));
+            if (currentPage > totalPages) {
+                setCurrentPage(totalPages);
+            }
+            return updated;
+        });
+
+        setWarningIdToRevoke(null);
+    };
+
+    const columns = buildWarningColumns(handleRequestRevoke);
+
+    const paginatedData = warnings.slice(
         (currentPage - 1) * PAGE_SIZE,
         currentPage * PAGE_SIZE,
     );
 
     return (
-        <AppTable
-            columns={WARNING_COLUMNS}
-            data={paginatedData}
-            rowKey={(row) => row.id}
-            emptyText="No warnings found."
-            tableAdditionalHeader={
-                <div className="flex items-center gap-3 px-6 py-5">
-                    <AppText variant="smallHeader" className="text-3xl font-semibold">
-                        Warning Log
-                    </AppText>
-                    <AppText variant="description" className="text-text-muted">
-                        (April 2026)
-                    </AppText>
-                </div>
-            }
-            pagination={{
-                currentPage,
-                totalItems: MOCK_WARNING_ROWS.length,
-                pageSize: PAGE_SIZE,
-                onPageChange: setCurrentPage,
-                itemLabel: "warnings",
-            }}
-        />
+        <>
+            <AppTable
+                columns={columns}
+                data={paginatedData}
+                rowKey={(row) => row.id}
+                emptyText="No warnings found."
+                tableAdditionalHeader={
+                    <div className="flex items-center gap-3 px-6 py-5">
+                        <AppText variant="smallHeader" className="text-3xl font-semibold">
+                            Warning Log
+                        </AppText>
+                        <AppText variant="description" className="text-text-muted">
+                            (April 2026)
+                        </AppText>
+                    </div>
+                }
+                pagination={{
+                    currentPage,
+                    totalItems: warnings.length,
+                    pageSize: PAGE_SIZE,
+                    onPageChange: setCurrentPage,
+                    itemLabel: "warnings",
+                }}
+            />
+
+            <DeleteConfirmModal
+                open={Boolean(warningIdToRevoke)}
+                onCancel={handleCloseRevokeModal}
+                onConfirm={handleConfirmRevoke}
+                title={warningToRevoke ? `Revoke warning ${warningToRevoke.id}?` : "Revoke warning?"}
+                description="This warning entry will be revoked and removed from the warning log."
+                confirmText="Revoke"
+                cancelText="Cancel"
+                ariaLabel="Confirm revoke warning"
+            />
+        </>
     );
 }

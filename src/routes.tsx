@@ -17,13 +17,17 @@ import {
     Payouts,
 } from "./pages";
 import { Login } from "./pages/login/login";
-import { ProtectedRoute } from "./layout/protected.layout";
+import { ProtectedRoute, PublicRoute } from "./layout/protected.layout";
 
 export const routes = createBrowserRouter([
-{
-    path: "/login",
-    Component: Login,
-},
+    {
+        path: "/login",
+        element: (
+            <PublicRoute redirectPath="/">
+                <Login />
+            </PublicRoute>
+        ),
+    },
     {
         path: "/",
         element: (
