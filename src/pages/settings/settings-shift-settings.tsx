@@ -1,21 +1,37 @@
-import React from "react";
 import { SunMoon } from "lucide-react";
 import { AppDropdownField } from "../../components/form-field";
 import { AppText } from "../../components/text";
 
-const TIME_OPTIONS = [
-    { value: "7am", label: "7:00 AM" },
-    { value: "8am", label: "8:00 AM" },
-    { value: "9am", label: "9:00 AM" },
-    { value: "7pm", label: "7:00 PM" },
-    { value: "8pm", label: "8:00 PM" },
-];
+const TIME_OPTIONS = Array.from({ length: 24 }, (_, hour) => {
+    const value = `${String(hour).padStart(2, "0")}:00:00`;
+    const period = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    const label = `${hour12}:00 ${period}`;
 
-export function SettingsShiftSettings() {
-    const [dayStartTime, setDayStartTime] = React.useState("7am");
-    const [dayTimezone, setDayTimezone] = React.useState("7pm");
-    const [nightStartTime, setNightStartTime] = React.useState("7pm");
-    const [nightTimezone, setNightTimezone] = React.useState("7am");
+    return { value, label };
+});
+
+type SettingsShiftSettingsProps = {
+    dayShiftStartTime: string;
+    dayShiftEndTime: string;
+    nightShiftStartTime: string;
+    nightShiftEndTime: string;
+    onDayShiftStartTimeChange: (value: string) => void;
+    onDayShiftEndTimeChange: (value: string) => void;
+    onNightShiftStartTimeChange: (value: string) => void;
+    onNightShiftEndTimeChange: (value: string) => void;
+};
+
+export function SettingsShiftSettings({
+    dayShiftStartTime,
+    dayShiftEndTime,
+    nightShiftStartTime,
+    nightShiftEndTime,
+    onDayShiftStartTimeChange,
+    onDayShiftEndTimeChange,
+    onNightShiftStartTimeChange,
+    onNightShiftEndTimeChange,
+}: SettingsShiftSettingsProps) {
 
     return (
               <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
@@ -42,15 +58,15 @@ export function SettingsShiftSettings() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <AppDropdownField
                         label="Start Time"
-                        value={dayStartTime}
+                        value={dayShiftStartTime}
                         options={TIME_OPTIONS}
-                        onChange={setDayStartTime}
+                        onChange={onDayShiftStartTimeChange}
                     />
                     <AppDropdownField
-                        label="Timezone"
-                        value={dayTimezone}
+                        label="End Time"
+                        value={dayShiftEndTime}
                         options={TIME_OPTIONS}
-                        onChange={setDayTimezone}
+                        onChange={onDayShiftEndTimeChange}
                     />
                 </div>
             </div>
@@ -66,15 +82,15 @@ export function SettingsShiftSettings() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <AppDropdownField
                         label="Start Time"
-                        value={nightStartTime}
+                        value={nightShiftStartTime}
                         options={TIME_OPTIONS}
-                        onChange={setNightStartTime}
+                        onChange={onNightShiftStartTimeChange}
                     />
                     <AppDropdownField
-                        label="Timezone"
-                        value={nightTimezone}
+                        label="End Time"
+                        value={nightShiftEndTime}
                         options={TIME_OPTIONS}
-                        onChange={setNightTimezone}
+                        onChange={onNightShiftEndTimeChange}
                     />
                 </div>
             </div>

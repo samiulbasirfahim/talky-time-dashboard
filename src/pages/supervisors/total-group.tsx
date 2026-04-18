@@ -191,7 +191,7 @@ export function TotalGroup() {
     };
 
     return (
-        <div className="p-4">
+        <div id="total-groups" className="p-4">
             <div className="shadow-border border-border border shadow-xs rounded-md w-full space-y-4 p-4">
                 <div className="flex justify-between items-center">
                     <AppText variant="header">Total Group</AppText>

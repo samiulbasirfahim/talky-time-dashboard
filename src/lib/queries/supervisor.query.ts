@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supervisorKeys } from "./keys";
+import { groupKeys, supervisorKeys } from "./keys";
 import { apiClient } from "../axios";
 import type {
     CreateSupervisorPayload,
@@ -60,6 +60,9 @@ export function useUpdateSupervisor() {
                 queryClient.invalidateQueries({
                     queryKey: supervisorKeys.details(variables.id),
                 }),
+                queryClient.invalidateQueries({
+                    queryKey: groupKeys.all(),
+                })
             ]);
         },
     });

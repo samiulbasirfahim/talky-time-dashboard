@@ -1,63 +1,51 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { AppButton } from "../../components/button";
 import { DeleteConfirmModal } from "../../components/delete-confirm-modal";
+import {
+    DISCIPLINE_WARNING_LOG_PAGE_SIZE,
+    usePaginatedDisciplinaryWarningLog,
+    useRevokeDisciplinaryWarning,
+} from "../../lib/queries";
 import { AppTable, type TableColumn } from "../../components/table";
 import { AppText } from "../../components/text";
+import type { DisciplinaryWarningLogItem } from "../../type";
 
 interface DisciplineWarningRow {
-    id: string;
+    id: number;
+    operatorId: string;
     operator: string;
     day: string;
     reason: string;
     warningCount: number;
+    action: string;
 }
 
-const PAGE_SIZE = 3;
+function formatWarningDate(dateText: string): string {
+    const date = new Date(dateText);
 
-const MOCK_WARNING_ROWS: DisciplineWarningRow[] = [
-    {
-        id: "#001",
-        operator: "Sofia_P",
-        day: "3 April",
-        reason: "Late Response (5min+)",
-        warningCount: 1,
-    },
-    {
-        id: "#002",
-        operator: "Luna_",
-        day: "5 April",
-        reason: "Disconnected During Live Shift",
-        warningCount: 2,
-    },
-    {
-        id: "#003",
-        operator: "Aria 35",
-        day: "7 April",
-        reason: "Unauthorized Break Extension",
-        warningCount: 1,
-    },
-    {
-        id: "#004",
-        operator: "Mira_9",
-        day: "9 April",
-        reason: "Unapproved Shift Swap",
-        warningCount: 3,
-    },
-    {
-        id: "#005",
-        operator: "Nico_2",
-        day: "10 April",
-        reason: "Late Login (10min)",
-        warningCount: 2,
-    },
-    {
-        id: "#006",
-        operator: "Reza_1",
-        day: "12 April",
-        reason: "Missed Mandatory Check-in",
-        warningCount: 1,
-    },
-];
+    if (Number.isNaN(date.getTime())) {
+        return dateText;
+    }
+
+    return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+}
+
+function toWarningRow(item: DisciplinaryWarningLogItem): DisciplineWarningRow {
+    return {
+        id: item.id,
+        operatorId: item.operator_id,
+        operator: item.operator_name,
+        day: formatWarningDate(item.date),
+        reason: item.reason,
+        warningCount: item.warning_count,
+        action: item.action,
+    };
+}
 
 function WarningCountCell({ value }: { value: number }) {
     const max = 3;
@@ -88,20 +76,26 @@ function WarningCountCell({ value }: { value: number }) {
 }
 
 const buildWarningColumns = (
-    onRequestRevoke: (warningId: string) => void,
+    onRequestRevoke: (warningId: number) => void,
+    isRevoking: boolean,
 ): TableColumn<DisciplineWarningRow>[] => [
     {
         key: "id",
         header: "ID",
-        render: (row) => <AppText variant="description">{row.id}</AppText>,
+        render: (row) => <AppText variant="description">#{row.id}</AppText>,
     },
     {
         key: "operator",
         header: "Operator",
         render: (row) => (
-            <AppText variant="body" className="font-semibold">
-                {row.operator}
-            </AppText>
+            <div className="flex flex-col">
+                <AppText variant="body" className="font-semibold">
+                    {row.operator}
+                </AppText>
+                <AppText variant="description" className="text-xs text-text-muted">
+                    {row.operatorId}
+                </AppText>
+            </div>
         ),
     },
     {
@@ -129,6 +123,7 @@ const buildWarningColumns = (
                 variant="link"
                 size="sm"
                 className="p-0 text-sm font-semibold"
+                disabled={isRevoking || row.action !== "revoke_warning"}
                 onClick={() => onRequestRevoke(row.id)}
             >
                 Revoke
@@ -138,13 +133,25 @@ const buildWarningColumns = (
 ];
 
 export function DisciplineWarningTable() {
-    const [warnings, setWarnings] = useState<DisciplineWarningRow[]>(MOCK_WARNING_ROWS);
     const [currentPage, setCurrentPage] = useState(1);
-    const [warningIdToRevoke, setWarningIdToRevoke] = useState<string | null>(null);
+    const [warningIdToRevoke, setWarningIdToRevoke] = useState<number | null>(null);
+    const {
+        data: warningLogData,
+        isLoading: isWarningLogLoading,
+        isError: isWarningLogError,
+    } = usePaginatedDisciplinaryWarningLog(currentPage);
+    const {
+        mutateAsync: revokeWarning,
+        isPending: isRevokingWarning,
+    } = useRevokeDisciplinaryWarning();
+
+    const warnings = useMemo<DisciplineWarningRow[]>(() => {
+        return (warningLogData?.results ?? []).map(toWarningRow);
+    }, [warningLogData]);
 
     const warningToRevoke = warnings.find((row) => row.id === warningIdToRevoke);
 
-    const handleRequestRevoke = (warningId: string) => {
+    const handleRequestRevoke = (warningId: number) => {
         setWarningIdToRevoke(warningId);
     };
 
@@ -152,37 +159,35 @@ export function DisciplineWarningTable() {
         setWarningIdToRevoke(null);
     };
 
-    const handleConfirmRevoke = () => {
+    const handleConfirmRevoke = async () => {
         if (!warningIdToRevoke) {
             return;
         }
 
-        setWarnings((prev) => {
-            const updated = prev.filter((row) => row.id !== warningIdToRevoke);
-            const totalPages = Math.max(1, Math.ceil(updated.length / PAGE_SIZE));
-            if (currentPage > totalPages) {
-                setCurrentPage(totalPages);
-            }
-            return updated;
-        });
-
-        setWarningIdToRevoke(null);
+        try {
+            await revokeWarning(warningIdToRevoke);
+            toast.success("Warning revoked successfully.");
+            setWarningIdToRevoke(null);
+        } catch {
+            toast.error("Failed to revoke warning. Please try again.");
+        }
     };
 
-    const columns = buildWarningColumns(handleRequestRevoke);
+    const columns = buildWarningColumns(handleRequestRevoke, isRevokingWarning);
 
-    const paginatedData = warnings.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE,
-    );
+    const emptyText = isWarningLogLoading
+        ? "Loading warnings..."
+        : isWarningLogError
+            ? "Failed to load warnings."
+            : "No warnings found.";
 
     return (
         <>
             <AppTable
                 columns={columns}
-                data={paginatedData}
+                data={warnings}
                 rowKey={(row) => row.id}
-                emptyText="No warnings found."
+                emptyText={emptyText}
                 tableAdditionalHeader={
                     <div className="flex items-center gap-3 px-6 py-5">
                         <AppText variant="smallHeader" className="text-3xl font-semibold">
@@ -195,8 +200,8 @@ export function DisciplineWarningTable() {
                 }
                 pagination={{
                     currentPage,
-                    totalItems: warnings.length,
-                    pageSize: PAGE_SIZE,
+                    totalItems: warningLogData?.count ?? 0,
+                    pageSize: DISCIPLINE_WARNING_LOG_PAGE_SIZE,
                     onPageChange: setCurrentPage,
                     itemLabel: "warnings",
                 }}
@@ -211,6 +216,8 @@ export function DisciplineWarningTable() {
                 confirmText="Revoke"
                 cancelText="Cancel"
                 ariaLabel="Confirm revoke warning"
+                isConfirming={isRevokingWarning}
+                confirmLoadingText="Revoking..."
             />
         </>
     );

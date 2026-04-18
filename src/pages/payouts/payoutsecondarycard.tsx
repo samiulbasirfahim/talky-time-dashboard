@@ -6,9 +6,11 @@ import {
 	Info,
 	SquarePen,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { AppButton } from "../../components/button";
 import { AppModal } from "../../components/modal";
 import { AppText } from "../../components/text";
+import { useSystemSettings, useUpdateSystemSettings } from "../../lib/queries";
 
 const PERIODS = [
 	"January 2026",
@@ -19,8 +21,20 @@ const PERIODS = [
 	"June 2026",
 ];
 
-const formatTime = (date: Date) => {
-	return date.toLocaleTimeString("en-US", {
+const formatLastUpdated = (timestamp?: string) => {
+	if (!timestamp) {
+		return "-";
+	}
+
+	const date = new Date(timestamp);
+	if (Number.isNaN(date.getTime())) {
+		return timestamp;
+	}
+
+	return date.toLocaleString("en-US", {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
 		hour: "2-digit",
 		minute: "2-digit",
 		hour12: true,
@@ -29,10 +43,19 @@ const formatTime = (date: Date) => {
 
 export function PayoutSecondaryCard() {
 	const [selectedPeriodIndex, setSelectedPeriodIndex] = React.useState(2);
-	const [exchangeRate, setExchangeRate] = React.useState("3550");
-	const [draftExchangeRate, setDraftExchangeRate] = React.useState("3550");
+	const [draftExchangeRate, setDraftExchangeRate] = React.useState("");
 	const [isModalOpen, setIsModalOpen] = React.useState(false);
-	const [lastUpdated, setLastUpdated] = React.useState(`Today, ${formatTime(new Date())}`);
+	const {
+		data: settingsData,
+		isLoading: isSettingsLoading,
+	} = useSystemSettings();
+	const {
+		mutateAsync: updateSystemSettings,
+		isPending: isUpdatingExchangeRate,
+	} = useUpdateSystemSettings();
+
+	const exchangeRate = settingsData?.exchange_rate_usd_to_cop ?? "0";
+	const lastUpdated = formatLastUpdated(settingsData?.exchange_rate_updated_at);
 
 	const currentPeriod = PERIODS[selectedPeriodIndex] ?? PERIODS[0];
 
@@ -49,14 +72,24 @@ export function PayoutSecondaryCard() {
 		setDraftExchangeRate(exchangeRate);
 	};
 
-	const handleUpdateRate = () => {
+	const handleUpdateRate = async () => {
 		const numericRate = Number(draftExchangeRate);
-		if (!Number.isFinite(numericRate) || numericRate <= 0) return;
+		if (!Number.isFinite(numericRate) || numericRate <= 0) {
+			toast.error("Exchange rate must be a valid positive number.");
+			return;
+		}
 
-		const normalizedRate = String(Math.round(numericRate));
-		setExchangeRate(normalizedRate);
-		setLastUpdated(`Today, ${formatTime(new Date())}`);
-		setIsModalOpen(false);
+		const normalizedRate = numericRate.toFixed(2);
+
+		try {
+			await updateSystemSettings({
+				exchange_rate_usd_to_cop: normalizedRate,
+			});
+			toast.success("Exchange rate updated successfully.");
+			setIsModalOpen(false);
+		} catch {
+			toast.error("Failed to update exchange rate. Please try again.");
+		}
 	};
 
 	return (
@@ -115,7 +148,7 @@ export function PayoutSecondaryCard() {
 									</AppText>
 									<div className="mt-1 flex items-center gap-2 bg-bg-secondary px-2 py-1 rounded flex-row justify-between">
 										<AppText variant="smallHeader" className="text-[2rem] leading-none">
-											${Number(exchangeRate).toLocaleString("en-US")}
+											{isSettingsLoading ? "Loading..." : `$${Number(exchangeRate).toLocaleString("en-US")}`}
 										</AppText>
 
 										<AppButton
@@ -123,6 +156,7 @@ export function PayoutSecondaryCard() {
 											size="sm"
 											aria-label="Edit exchange rate"
 											onClick={handleOpenModal}
+											disabled={isSettingsLoading}
 											className="h-8 w-8 p-0"
 										>
 											<SquarePen size={22} />
@@ -184,6 +218,7 @@ export function PayoutSecondaryCard() {
 								type="number"
 								min="1"
 								value={draftExchangeRate}
+								disabled={isUpdatingExchangeRate}
 								onChange={(event) => setDraftExchangeRate(event.target.value)}
 								onKeyDown={(event) => {
 									if (event.key === "Enter") {
@@ -204,6 +239,7 @@ export function PayoutSecondaryCard() {
 							variant="outline"
 							size="md"
 							onClick={handleCloseModal}
+							disabled={isUpdatingExchangeRate}
 							className="w-full"
 						>
 							Cancel
@@ -212,6 +248,9 @@ export function PayoutSecondaryCard() {
 							variant="focus"
 							size="md"
 							onClick={handleUpdateRate}
+							isLoading={isUpdatingExchangeRate}
+							loadingLabel="Updating..."
+							disabled={isUpdatingExchangeRate}
 							className="w-full"
 						>
 							Update Rate

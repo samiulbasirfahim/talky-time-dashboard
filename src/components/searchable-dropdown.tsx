@@ -206,7 +206,7 @@ export function SearchableDropdown({
     const showClear = !!value && !open;
 
     return (
-        <div className={`space-y-1.5 ${className}`} ref={wrapperRef}>
+        <div className={`relative space-y-1.5 ${className}`} ref={wrapperRef}>
             {/* Label */}
             <AppText variant="description" className="font-semibold text-text">
                 {label}
@@ -282,8 +282,7 @@ export function SearchableDropdown({
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="absolute z-30 mt-1 w-[inherit] min-w-(--radix-select-trigger-width) rounded-xl border border-border bg-bg shadow-xl ring-1 ring-black/5 overflow-hidden"
-                        style={{ width: wrapperRef.current?.offsetWidth }}
+                        className="absolute left-0 right-0 z-50 mt-1 rounded-xl border border-border bg-bg shadow-xl ring-1 ring-black/5 overflow-hidden"
                     >
                         {filteredOptions.length === 0 ? (
                             <motion.div

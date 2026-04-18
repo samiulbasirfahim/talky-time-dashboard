@@ -409,7 +409,7 @@ export function ProfileLeftSection({
                 emptyText={tableEmptyText}
             />
 
-            <section className="rounded-3xl border border-border bg-bg px-6 py-5 shadow-xs">
+            <section className="rounded-3xl border hidden border-border bg-bg px-6 py-5 shadow-xs">
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                     <AppText variant="smallHeader" className="font-semibold text-text">
                         Profile Trend Distribution

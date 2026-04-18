@@ -1,8 +1,19 @@
 import React from "react";
+import { isAxiosError } from "axios";
 import { ArrowRight } from "lucide-react";
+import toast from "react-hot-toast";
 import { AppButton } from "../../components/button";
-import { AppDropdown } from "../../components/dropdown";
+import {
+    SearchableDropdown,
+    type SearchableDropdownOption,
+} from "../../components/searchable-dropdown";
 import { AppText } from "../../components/text";
+import { useDebounce } from "../../lib/hooks/debounce";
+import {
+    useIssueDisciplinaryWarning,
+    useSearchOperators,
+} from "../../lib/queries";
+import type { IssueDisciplinaryWarningValidationErrors } from "../../type";
 
 type ReprimandHistoryRow = {
     operator: string;
@@ -23,18 +34,114 @@ const REPRIMAND_HISTORY: ReprimandHistoryRow[] = [
     },
 ];
 
-const OPERATOR_OPTIONS = [
-    { value: "", label: "Select operator..." },
-    { value: "#001|Sofia_P", label: "#001 - Sofia_P" },
-    { value: "#002|Luna_", label: "#002 - Luna_" },
-    { value: "#003|Aria 35", label: "#003 - Aria 35" },
-    { value: "#004|Mira_9", label: "#004 - Mira_9" },
-    { value: "#005|Nico_2", label: "#005 - Nico_2" },
-    { value: "#006|Reza_1", label: "#006 - Reza_1" },
-];
+type WarningFormErrors = {
+    operatorId?: string;
+    actionDate?: string;
+    reason?: string;
+    general?: string;
+};
+
+function getFirstErrorMessage(value: unknown): string | undefined {
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
+        return value[0];
+    }
+
+    if (typeof value === "string") {
+        return value;
+    }
+
+    return undefined;
+}
 
 export function DisciplineIssueWarningSection() {
-    const [selectedOperator, setSelectedOperator] = React.useState("");
+    const [selectedOperatorId, setSelectedOperatorId] = React.useState("");
+    const [operatorSearch, setOperatorSearch] = React.useState("");
+    const [actionDate, setActionDate] = React.useState(() => new Date().toISOString().slice(0, 10));
+    const [reason, setReason] = React.useState("");
+    const [fieldErrors, setFieldErrors] = React.useState<WarningFormErrors>({});
+
+    const debouncedOperatorSearch = useDebounce(operatorSearch, 500);
+    const { data: operatorsData, isPending: isOperatorsPending } = useSearchOperators(debouncedOperatorSearch);
+    const {
+        mutateAsync: issueDisciplinaryWarning,
+        isPending: isIssuingWarning,
+    } = useIssueDisciplinaryWarning();
+
+    const operatorOptions = React.useMemo<SearchableDropdownOption[]>(() => {
+        return (operatorsData?.results ?? []).map((operator) => ({
+            value: String(operator.id),
+            label: `${operator.operator_id} - ${operator.operator_name}`,
+            subtitle: `${operator.group_name} | ${operator.shift_display}`,
+            keywords: [
+                operator.operator_id,
+                operator.operator_name,
+                operator.full_name,
+                operator.group_name,
+                operator.shift_display,
+            ],
+        }));
+    }, [operatorsData]);
+
+    const handleSubmitWarning = async () => {
+        const nextErrors: WarningFormErrors = {};
+
+        if (!selectedOperatorId) {
+            nextErrors.operatorId = "Operator is required.";
+        }
+
+        if (!actionDate) {
+            nextErrors.actionDate = "Action date is required.";
+        }
+
+        if (!reason.trim()) {
+            nextErrors.reason = "Reason is required.";
+        }
+
+        if (Object.keys(nextErrors).length > 0) {
+            setFieldErrors(nextErrors);
+            return;
+        }
+
+        const parsedOperatorId = Number(selectedOperatorId);
+        if (!Number.isInteger(parsedOperatorId) || parsedOperatorId <= 0) {
+            setFieldErrors({ operatorId: "Please select a valid operator." });
+            return;
+        }
+
+        try {
+            await issueDisciplinaryWarning({
+                operator_id: parsedOperatorId,
+                action_date: actionDate,
+                reason: reason.trim(),
+            });
+
+            toast.success("Warning issued successfully.");
+            setReason("");
+            setFieldErrors({});
+        } catch (error) {
+            if (isAxiosError<IssueDisciplinaryWarningValidationErrors>(error)) {
+                const apiErrors = error.response?.data;
+
+                const mappedErrors: WarningFormErrors = {
+                    operatorId: getFirstErrorMessage(apiErrors?.operator_id),
+                    actionDate: getFirstErrorMessage(apiErrors?.action_date),
+                    reason: getFirstErrorMessage(apiErrors?.reason),
+                    general:
+                        getFirstErrorMessage(apiErrors?.detail) ??
+                        getFirstErrorMessage(apiErrors?.non_field_errors),
+                };
+
+                setFieldErrors(mappedErrors);
+
+                if (mappedErrors.general) {
+                    toast.error(mappedErrors.general);
+                    return;
+                }
+            }
+
+            toast.error("Failed to issue warning. Please try again.");
+        }
+    };
 
     return (
         <div className="p-4">
@@ -46,14 +153,19 @@ export function DisciplineIssueWarningSection() {
 
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div className="space-y-2">
-                                <AppText variant="description" className="text-xs font-bold uppercase tracking-[0.14em] text-text-secondary">
-                                    Operator ID / Name
-                                </AppText>
-                                <AppDropdown
-                                    value={selectedOperator}
-                                    options={OPERATOR_OPTIONS}
-                                    onChange={setSelectedOperator}
-                                    className="h-11 px-4"
+                                <SearchableDropdown
+                                    label="Operator ID / Name"
+                                    value={selectedOperatorId}
+                                    options={operatorOptions}
+                                    onChange={(value) => {
+                                        setSelectedOperatorId(value);
+                                        setFieldErrors((prev) => ({ ...prev, operatorId: undefined }));
+                                    }}
+                                    onSearchChange={setOperatorSearch}
+                                    placeholder={isOperatorsPending ? "Searching operators..." : "Search operator"}
+                                    emptyText={isOperatorsPending ? "Searching..." : "No operators found."}
+                                    description={fieldErrors.operatorId}
+                                    descriptionClassName="text-red"
                                 />
                             </div>
 
@@ -64,10 +176,19 @@ export function DisciplineIssueWarningSection() {
                                 <div className="relative">
                                     <input
                                         type="date"
-                                        defaultValue="2026-04-12"
+                                        value={actionDate}
+                                        onChange={(event) => {
+                                            setActionDate(event.target.value);
+                                            setFieldErrors((prev) => ({ ...prev, actionDate: undefined }));
+                                        }}
                                         className="h-11 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text outline-none focus:border-text-focus focus:bg-white"
                                     />
                                 </div>
+                                {fieldErrors.actionDate && (
+                                    <AppText variant="description" className="text-xs text-red">
+                                        {fieldErrors.actionDate}
+                                    </AppText>
+                                )}
                             </div>
                         </div>
 
@@ -78,11 +199,30 @@ export function DisciplineIssueWarningSection() {
                             <textarea
                                 rows={3}
                                 placeholder="Describe the violation in detail..."
+                                value={reason}
+                                onChange={(event) => {
+                                    setReason(event.target.value);
+                                    setFieldErrors((prev) => ({ ...prev, reason: undefined }));
+                                }}
                                 className="w-full resize-none rounded-lg border border-border bg-tab-bg px-4 py-3 text-base text-text-secondary outline-none placeholder:text-text-muted focus:border-text-focus focus:bg-white"
                             />
+                            {fieldErrors.reason && (
+                                <AppText variant="description" className="text-xs text-red">
+                                    {fieldErrors.reason}
+                                </AppText>
+                            )}
                         </div>
 
-                        <AppButton type="button" variant="focus" fullWidth className="h-12 rounded-lg text-base font-semibold">
+                        <AppButton
+                            type="button"
+                            variant="focus"
+                            fullWidth
+                            className="h-12 rounded-lg text-base font-semibold"
+                            onClick={handleSubmitWarning}
+                            isLoading={isIssuingWarning}
+                            loadingLabel="Issuing..."
+                            disabled={isIssuingWarning}
+                        >
                             Issue Warning
                         </AppButton>
                 </div>

@@ -3,10 +3,17 @@ import { BadgePercent } from "lucide-react";
 import { AppInputField } from "../../components/form-field";
 import { AppText } from "../../components/text";
 
-export function SettingsPayoutConfiguration() {
+type SettingsPayoutConfigurationProps = {
+    qualificationThreshold: string;
+    onQualificationThresholdChange: (value: string) => void;
+};
+
+export function SettingsPayoutConfiguration({
+    qualificationThreshold,
+    onQualificationThresholdChange,
+}: SettingsPayoutConfigurationProps) {
     const [defaultCommissionRate, setDefaultCommissionRate] = React.useState("21");
     const [highPerformanceRate, setHighPerformanceRate] = React.useState("25");
-    const [qualificationThreshold, setQualificationThreshold] = React.useState("1000");
 
     return (
         <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
@@ -57,7 +64,7 @@ export function SettingsPayoutConfiguration() {
                 description="Minimum bonuses required to qualify for high performance rate"
                 type="number"
                 value={qualificationThreshold}
-                onChange={setQualificationThreshold}
+                onChange={onQualificationThresholdChange}
                 suffix={
                     <AppText variant="description" className="text-base text-text-muted">
                         bonuses

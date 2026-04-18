@@ -59,11 +59,15 @@ export function useDeleteGroup() {
 }
 
 export function useAllGroups() {
+    return useAllGroupsWithLimit(ALL_GROUPS_LIMIT);
+}
+
+export function useAllGroupsWithLimit(limit: number) {
     return useQuery({
-        queryKey: groupKeys.list(),
+        queryKey: groupKeys.list(limit),
         queryFn: async (): Promise<GroupSearchResponse> => {
             const response = await apiClient.get<GroupSearchResponse>(
-                `/operations/operator-groups/?limit=${ALL_GROUPS_LIMIT}`,
+                `/operations/operator-groups/?limit=${limit}`,
             );
             return response.data;
         },

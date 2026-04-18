@@ -9,6 +9,9 @@ type Props = {
         label: string;
         icon: LucideIcon;
         onClick: () => void;
+        isLoading?: boolean;
+        loadingLabel?: string;
+        disabled?: boolean;
     }[];
 };
 
@@ -27,6 +30,9 @@ export function HeaderSection({ title, description, buttons }: Props) {
                         variant={index % 2 === 0 ? "focus" : "outline"}
                         prefixIcon={button.icon}
                         onClick={button.onClick}
+                        isLoading={button.isLoading}
+                        loadingLabel={button.loadingLabel}
+                        disabled={button.disabled}
                         key={index}
                     >
                         {button.label}

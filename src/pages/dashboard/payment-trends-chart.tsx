@@ -1,50 +1,12 @@
 import { useState } from "react";
 import { AppText } from "../../components/text";
 import { AppButton } from "../../components/button";
+import { useDashboardEarnings } from "../../lib/queries";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 
-const dummyData = {
-    monthly: [
-        { date: "2026-04-01", payout: 5000 },
-        { date: "2026-04-02", payout: 7000 },
-        { date: "2026-04-03", payout: 6000 },
-        { date: "2026-04-04", payout: 8000 },
-        { date: "2026-04-05", payout: 7500 },
-        { date: "2026-04-06", payout: 9000 },
-        { date: "2026-04-07", payout: 8500 },
-        { date: "2026-04-08", payout: 9500 },
-        { date: "2026-04-09", payout: 10000 },
-        { date: "2026-04-10", payout: 11000 },
-        { date: "2026-04-11", payout: 10500 },
-        { date: "2026-04-12", payout: 12000 },
-        { date: "2026-04-13", payout: 11500 },
-        { date: "2026-04-14", payout: 13000 },
-        { date: "2026-04-15", payout: 12500 },
-        { date: "2026-04-16", payout: 14000 },
-        { date: "2026-04-17", payout: 13500 },
-        { date: "2026-04-18", payout: 15000 },
-        { date: "2026-04-19", payout: 14500 },
-        { date: "2026-04-20", payout: 16000 },
-        { date: "2026-04-21", payout: 15500 },
-        { date: "2026-04-22", payout: 17000 },
-        { date: "2026-04-23", payout: 16500 },
-        { date: "2026-04-24", payout: 18000 },
-        { date: "2026-04-25", payout: 17500 },
-        { date: "2026-04-26", payout: 19000 },
-        { date: "2026-04-27", payout: 18500 },
-        { date: "2026-04-28", payout: 20000 },
-        { date: "2026-04-29", payout: 19500 },
-        { date: "2026-04-30", payout: 21000 },
-    ],
-    weekly: [
-        { date: "2026-04-24", payout: 18000 },
-        { date: "2026-04-25", payout: 17500 },
-        { date: "2026-04-26", payout: 19000 },
-        { date: "2026-04-27", payout: 18500 },
-        { date: "2026-04-28", payout: 20000 },
-        { date: "2026-04-29", payout: 19500 },
-        { date: "2026-04-30", payout: 21000 },
-    ],
+type PayoutPoint = {
+    date: string;
+    payout: number;
 };
 
 type TextAnchor = "start" | "middle" | "end";
@@ -52,14 +14,31 @@ export function PaymentTrendsChart() {
     const [selectedTimeframe, setSelectedTimeframe] = useState<
         "Monthly" | "Weekly"
     >("Monthly");
+    const { data: earnings, isLoading, isError } = useDashboardEarnings();
+
+    const monthlyData: PayoutPoint[] = (earnings?.monthly_bonus_series ?? []).map((item) => ({
+        date: item.date,
+        payout: item.total_bonus,
+    }));
+
+    const weeklyData: PayoutPoint[] = (earnings?.weekly_bonus_series ?? []).map((item) => ({
+        date: item.date,
+        payout: item.total_bonus,
+    }));
 
     const data =
-        selectedTimeframe === "Monthly" ? dummyData.monthly : dummyData.weekly;
+        selectedTimeframe === "Monthly" ? monthlyData : weeklyData;
+
+    const payouts = data.map((item) => item.payout);
+    const minPayout = payouts.length > 0 ? Math.min(...payouts) : 0;
+    const maxPayout = payouts.length > 0 ? Math.max(...payouts) : 1;
 
     const getBarColor = (payout: number) => {
-        const min = 5000;
-        const max = 21000;
-        const ratio = (payout - min) / (max - min);
+        if (maxPayout === minPayout) {
+            return "#2C61E540";
+        }
+
+        const ratio = (payout - minPayout) / (maxPayout - minPayout);
 
         if (ratio > 0.8) return "#2C61E5DD";
         if (ratio > 0.6) return "#2C61E580";
@@ -89,6 +68,10 @@ export function PaymentTrendsChart() {
     };
 
     const getTicks = () => {
+        if (data.length === 0) {
+            return [];
+        }
+
         if (selectedTimeframe === "Weekly") {
             return data.map((d) => d.date); // Show every day for weekly
         }
@@ -106,8 +89,7 @@ export function PaymentTrendsChart() {
                 <div>
                     <AppText variant="header">Total Payout Trends</AppText>
                     <AppText variant="description">
-                        Revenue distribution over the last{" "}
-                        {selectedTimeframe === "Monthly" ? "30" : "7"} days
+                        Revenue distribution over the last {data.length} days
                     </AppText>
                 </div>
                 <div className="space-x-2">
@@ -126,6 +108,18 @@ export function PaymentTrendsChart() {
                 </div>
             </div>
 
+            {isLoading && (
+                <AppText variant="description" className="mb-3 text-text-muted">
+                    Loading payout trends...
+                </AppText>
+            )}
+
+            {isError && (
+                <AppText variant="description" className="mb-3 text-red">
+                    Failed to load payout trends.
+                </AppText>
+            )}
+
             <ResponsiveContainer width={"100%"} height={400}>
                 <BarChart
                     data={data}
@@ -139,6 +133,10 @@ export function PaymentTrendsChart() {
                         interval={0}
                         padding={{ left: 10, right: 10 }}
                         tick={(props: any) => {
+                            if (data.length === 0) {
+                                return null;
+                            }
+
                             const x = Number(props.x);
                             const y = Number(props.y);
                             const { payload } = props;

@@ -1,11 +1,43 @@
-import React from "react";
 import { CircleDollarSign } from "lucide-react";
 import { AppButton } from "../../components/button";
 import { AppInputField } from "../../components/form-field";
 import { AppText } from "../../components/text";
 
-export function SettingsExchangeRate() {
-    const [exchangeRate, setExchangeRate] = React.useState("1000");
+type SettingsExchangeRateProps = {
+    exchangeRate: string;
+    exchangeRateUpdatedAt?: string;
+    onExchangeRateChange: (value: string) => void;
+    onUpdateExchangeRate: () => void;
+    isUpdatingExchangeRate: boolean;
+};
+
+export function SettingsExchangeRate({
+    exchangeRate,
+    exchangeRateUpdatedAt,
+    onExchangeRateChange,
+    onUpdateExchangeRate,
+    isUpdatingExchangeRate,
+}: SettingsExchangeRateProps) {
+
+    const formattedLastUpdated = (() => {
+        if (!exchangeRateUpdatedAt) {
+            return "-";
+        }
+
+        const parsedDate = new Date(exchangeRateUpdatedAt);
+        if (Number.isNaN(parsedDate.getTime())) {
+            return exchangeRateUpdatedAt;
+        }
+
+        return parsedDate.toLocaleString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        });
+    })();
 
     return (
               <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
@@ -25,7 +57,7 @@ export function SettingsExchangeRate() {
                 label="USD to COP Exchange Rate"
                 type="number"
                 value={exchangeRate}
-                onChange={setExchangeRate}
+                onChange={onExchangeRateChange}
                 fullWidth={false}
                 inputClassName="w-36"
                 prefix={
@@ -46,7 +78,7 @@ export function SettingsExchangeRate() {
                         Last updated:
                     </AppText>
                     <span className="rounded-md bg-tab-bg px-3 py-1 text-sm font-semibold text-text">
-                        March 15, 2026
+                        {formattedLastUpdated}
                     </span>
                 </div>
 
@@ -54,15 +86,21 @@ export function SettingsExchangeRate() {
                     variant="outline"
                     size="sm"
                     className="h-9 rounded-lg border-text-focus/45 px-4 font-semibold text-text-focus"
+                    onClick={onUpdateExchangeRate}
+                    isLoading={isUpdatingExchangeRate}
+                    loadingLabel="Updating..."
+                    disabled={isUpdatingExchangeRate}
                 >
                     Update Rate
                 </AppButton>
             </div>
 
             <div className="rounded-xl bg-bg-focus px-4 py-3">
-                <AppText variant="description" className="text-base text-text-focus">
-                    <span className="font-semibold text-text-focus">Monthly Update Control:</span> Exchange rate should be
+                <AppText variant="description" className="">
+                    <span className="font-semibold text-text-focus">Monthly Update Control:</span> <span className="text-text-focus/70">
+                        Exchange rate should be
                     updated at the beginning of each month to ensure accurate payout calculations.
+                    </span>
                 </AppText>
             </div>
         </section>

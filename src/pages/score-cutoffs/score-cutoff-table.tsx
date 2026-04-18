@@ -1,38 +1,39 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AppText } from "../../components/text";
 import {
     AppTable,
     type TableColumn,
 } from "../../components/table";
+import {
+    SCORE_CUTOFFS_PAGE_SIZE,
+    usePaginatedScoreCutoffs,
+} from "../../lib/queries";
+import type { ScoreCutoffResponse } from "../../type";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ScoreCutoffRow {
-    id: string;
+    id: number;
     operatorName: string;
     shiftBonuses: number;
     dailyTotal: number;
     monthlyTotal: number;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+const toNumber = (value: string | number): number => {
+    const normalized = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(normalized) ? normalized : 0;
+};
 
-const MOCK_DATA: ScoreCutoffRow[] = [
-    { id: "1", operatorName: "Maria G. (32)", shiftBonuses: 120, dailyTotal: 245, monthlyTotal: 1850 },
-    { id: "2", operatorName: "Carlos R. (40)", shiftBonuses: 105, dailyTotal: 210, monthlyTotal: 1920 },
-    { id: "3", operatorName: "Anna L. (28)", shiftBonuses: 145, dailyTotal: 280, monthlyTotal: 2100 },
-    { id: "4", operatorName: "James K. (45)", shiftBonuses: 95, dailyTotal: 190, monthlyTotal: 1640 },
-    { id: "5", operatorName: "Sofia V. (35)", shiftBonuses: 132, dailyTotal: 265, monthlyTotal: 2015 },
-    { id: "6", operatorName: "Diego M. (29)", shiftBonuses: 110, dailyTotal: 225, monthlyTotal: 1780 },
-    { id: "7", operatorName: "Elena P. (38)", shiftBonuses: 158, dailyTotal: 310, monthlyTotal: 2340 },
-    { id: "8", operatorName: "Luis T. (42)", shiftBonuses: 88, dailyTotal: 175, monthlyTotal: 1520 },
-    { id: "9", operatorName: "Rosa H. (31)", shiftBonuses: 140, dailyTotal: 270, monthlyTotal: 2080 },
-    { id: "10", operatorName: "Miguel F. (36)", shiftBonuses: 125, dailyTotal: 250, monthlyTotal: 1950 },
-    { id: "11", operatorName: "Carmen S. (27)", shiftBonuses: 115, dailyTotal: 230, monthlyTotal: 1820 },
-    { id: "12", operatorName: "Pedro R. (44)", shiftBonuses: 98, dailyTotal: 195, monthlyTotal: 1580 },
-];
-
-const PAGE_SIZE = 5;
+const toRow = (item: ScoreCutoffResponse): ScoreCutoffRow => {
+    return {
+        id: item.id,
+        operatorName: item.operator_name,
+        shiftBonuses: item.total_group_bonus,
+        dailyTotal: toNumber(item.daily_total),
+        monthlyTotal: item.monthly_total,
+    };
+};
 
 // ─── Column Definitions ───────────────────────────────────────────────────────
 
@@ -82,23 +83,29 @@ const columns: TableColumn<ScoreCutoffRow>[] = [
 
 export const ScoreCutoffTable = () => {
     const [currentPage, setCurrentPage] = useState(1);
+    const { data, isLoading, isError } = usePaginatedScoreCutoffs(currentPage);
 
-    const paginatedData = MOCK_DATA.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE,
-    );
+    const rows = useMemo<ScoreCutoffRow[]>(() => {
+        return (data?.results ?? []).map(toRow);
+    }, [data]);
+
+    const emptyText = isLoading
+        ? "Loading score cutoff data..."
+        : isError
+            ? "Failed to load score cutoff data."
+            : "No score cutoff data available.";
 
     return (
         <div className="p-4">
             <AppTable
                 columns={columns}
-                data={paginatedData}
+                data={rows}
                 rowKey={(r) => r.id}
-                emptyText="No score cutoff data available."
+                emptyText={emptyText}
                 pagination={{
                     currentPage,
-                    totalItems: MOCK_DATA.length,
-                    pageSize: PAGE_SIZE,
+                    totalItems: data?.count ?? 0,
+                    pageSize: SCORE_CUTOFFS_PAGE_SIZE,
                     onPageChange: setCurrentPage,
                     itemLabel: "operators",
                 }}

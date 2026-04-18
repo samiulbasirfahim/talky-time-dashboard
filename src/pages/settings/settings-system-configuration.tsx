@@ -1,32 +1,73 @@
-import React from "react";
 import { Settings } from "lucide-react";
 import { AppDropdownField, AppInputField } from "../../components/form-field";
 import { AppText } from "../../components/text";
 
 const TIMEZONE_OPTIONS = [
-    { value: "utc-5", label: "UTC-5 (Colombia)" },
-    { value: "utc-4", label: "UTC-4" },
-    { value: "utc-3", label: "UTC-3" },
+    { value: "America/Bogota", label: "(UTC-05:00) America/Bogota" },
+    { value: "America/Lima", label: "(UTC-05:00) America/Lima" },
+    { value: "America/Panama", label: "(UTC-05:00) America/Panama" },
+    { value: "America/New_York", label: "(UTC-05:00/-04:00) America/New_York" },
+    { value: "America/Mexico_City", label: "(UTC-06:00/-05:00) America/Mexico_City" },
+    { value: "America/Chicago", label: "(UTC-06:00/-05:00) America/Chicago" },
+    { value: "America/Denver", label: "(UTC-07:00/-06:00) America/Denver" },
+    { value: "America/Los_Angeles", label: "(UTC-08:00/-07:00) America/Los_Angeles" },
+    { value: "America/Caracas", label: "(UTC-04:00) America/Caracas" },
+    { value: "America/Santiago", label: "(UTC-04:00/-03:00) America/Santiago" },
+    { value: "America/Sao_Paulo", label: "(UTC-03:00) America/Sao_Paulo" },
+    { value: "Europe/London", label: "(UTC+00:00/+01:00) Europe/London" },
+    { value: "Europe/Madrid", label: "(UTC+01:00/+02:00) Europe/Madrid" },
+    { value: "Europe/Berlin", label: "(UTC+01:00/+02:00) Europe/Berlin" },
+    { value: "Europe/Paris", label: "(UTC+01:00/+02:00) Europe/Paris" },
+    { value: "Asia/Dubai", label: "(UTC+04:00) Asia/Dubai" },
+    { value: "Asia/Kolkata", label: "(UTC+05:30) Asia/Kolkata" },
+    { value: "Asia/Bangkok", label: "(UTC+07:00) Asia/Bangkok" },
+    { value: "Asia/Singapore", label: "(UTC+08:00) Asia/Singapore" },
+    { value: "Asia/Tokyo", label: "(UTC+09:00) Asia/Tokyo" },
+    { value: "Australia/Sydney", label: "(UTC+10:00/+11:00) Australia/Sydney" },
+    { value: "UTC", label: "(UTC+00:00) UTC" },
 ];
 
 const CURRENCY_OPTIONS = [
-    { value: "cop", label: "COP (Colombian Peso)" },
-    { value: "usd", label: "USD (US Dollar)" },
-    { value: "eur", label: "EUR (Euro)" },
+    { value: "COP", label: "COP (Colombian Peso)" },
+    { value: "USD", label: "USD (US Dollar)" },
+    { value: "EUR", label: "EUR (Euro)" },
+    { value: "MXN", label: "MXN (Mexican Peso)" },
+    { value: "BRL", label: "BRL (Brazilian Real)" },
 ];
 
 const RESET_DAY_OPTIONS = [
-    { value: "day-1", label: "Day 1" },
-    { value: "day-5", label: "Day 5" },
-    { value: "day-10", label: "Day 10" },
-    { value: "day-15", label: "Day 15" },
+    { value: "1", label: "Day 1" },
+    { value: "2", label: "Day 2" },
+    { value: "3", label: "Day 3" },
+    { value: "5", label: "Day 5" },
+    { value: "10", label: "Day 10" },
+    { value: "15", label: "Day 15" },
+    { value: "20", label: "Day 20" },
+    { value: "25", label: "Day 25" },
+    { value: "28", label: "Day 28" },
 ];
 
-export function SettingsSystemConfiguration() {
-    const [systemName, setSystemName] = React.useState("Workforce Management System");
-    const [timezone, setTimezone] = React.useState("utc-5");
-    const [currency, setCurrency] = React.useState("cop");
-    const [resetDay, setResetDay] = React.useState("day-1");
+type SettingsSystemConfigurationProps = {
+    systemName: string;
+    timezone: string;
+    currency: string;
+    resetDay: string;
+    onSystemNameChange: (value: string) => void;
+    onTimezoneChange: (value: string) => void;
+    onCurrencyChange: (value: string) => void;
+    onResetDayChange: (value: string) => void;
+};
+
+export function SettingsSystemConfiguration({
+    systemName,
+    timezone,
+    currency,
+    resetDay,
+    onSystemNameChange,
+    onTimezoneChange,
+    onCurrencyChange,
+    onResetDayChange,
+}: SettingsSystemConfigurationProps) {
 
     return (
         <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
@@ -47,28 +88,28 @@ export function SettingsSystemConfiguration() {
                     label="System Name"
                     type="text"
                     value={systemName}
-                    onChange={setSystemName}
+                    onChange={onSystemNameChange}
                 />
 
                 <AppDropdownField
                     label="Timezone"
                     value={timezone}
                     options={TIMEZONE_OPTIONS}
-                    onChange={setTimezone}
+                    onChange={onTimezoneChange}
                 />
 
                 <AppDropdownField
                     label="Payout Currency"
                     value={currency}
                     options={CURRENCY_OPTIONS}
-                    onChange={setCurrency}
+                    onChange={onCurrencyChange}
                 />
 
                 <AppDropdownField
                     label="Monthly Reset Day"
                     value={resetDay}
                     options={RESET_DAY_OPTIONS}
-                    onChange={setResetDay}
+                    onChange={onResetDayChange}
                 />
             </div>
         </section>

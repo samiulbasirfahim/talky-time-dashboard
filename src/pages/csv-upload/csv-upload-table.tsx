@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle, XCircle, FileText, Clock } from "lucide-react";
 import { AppText } from "../../components/text";
 import {
     AppTable,
     type TableColumn,
 } from "../../components/table";
+import { useLatestCsvUploads } from "../../lib/queries";
+import type { CsvLatestUploadItem } from "../../type";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type UploadStatus = "success" | "error";
 
 interface CsvUploadRow {
-    id: string;
+    id: number;
     filename: string;
     status: UploadStatus;
     records: number;
@@ -19,24 +21,36 @@ interface CsvUploadRow {
     timestamp: string;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const MOCK_DATA: CsvUploadRow[] = [
-    { id: "1", filename: "bonuses_2024_03_28.csv", status: "success", records: 48, uploadedBy: "Admin", timestamp: "2024-03-28 09:15" },
-    { id: "2", filename: "bonuses_2024_03_27.csv", status: "success", records: 46, uploadedBy: "Admin", timestamp: "2024-03-27 09:02" },
-    { id: "3", filename: "bonuses_2024_03_26.csv", status: "error", records: 12, uploadedBy: "Supervisor", timestamp: "2024-03-26 09:30" },
-    { id: "4", filename: "bonuses_2024_03_25.csv", status: "success", records: 50, uploadedBy: "Admin", timestamp: "2024-03-25 08:55" },
-    { id: "5", filename: "bonuses_2024_03_24.csv", status: "success", records: 44, uploadedBy: "Admin", timestamp: "2024-03-24 09:10" },
-    { id: "6", filename: "bonuses_2024_03_23.csv", status: "success", records: 38, uploadedBy: "Admin", timestamp: "2024-03-23 10:05" },
-    { id: "7", filename: "bonuses_2024_03_22.csv", status: "error", records: 5, uploadedBy: "Supervisor", timestamp: "2024-03-22 08:40" },
-    { id: "8", filename: "bonuses_2024_03_21.csv", status: "success", records: 52, uploadedBy: "Admin", timestamp: "2024-03-21 09:20" },
-    { id: "9", filename: "bonuses_2024_03_20.csv", status: "success", records: 41, uploadedBy: "Admin", timestamp: "2024-03-20 09:00" },
-    { id: "10", filename: "bonuses_2024_03_19.csv", status: "success", records: 47, uploadedBy: "Admin", timestamp: "2024-03-19 08:50" },
-    { id: "11", filename: "bonuses_2024_03_18.csv", status: "error", records: 3, uploadedBy: "Supervisor", timestamp: "2024-03-18 09:35" },
-    { id: "12", filename: "bonuses_2024_03_17.csv", status: "success", records: 55, uploadedBy: "Admin", timestamp: "2024-03-17 08:30" },
-];
-
 const PAGE_SIZE = 5;
+
+const toRowStatus = (status: CsvLatestUploadItem["status"]): UploadStatus => {
+    return status === "success" ? "success" : "error";
+};
+
+const toUploadedBy = (name: CsvLatestUploadItem["uploaded_by_name"]): string => {
+    if (name === "supervisor") {
+        return "Supervisor";
+    }
+
+    return "Admin";
+};
+
+const formatUploadedAt = (uploadedAt: string): string => {
+    const date = new Date(uploadedAt);
+
+    if (Number.isNaN(date.getTime())) {
+        return uploadedAt;
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+    }).format(date);
+};
 
 // ─── Status Cell ──────────────────────────────────────────────────────────────
 
@@ -116,11 +130,37 @@ const columns: TableColumn<CsvUploadRow>[] = [
 
 export const CsvUploadTable = () => {
     const [currentPage, setCurrentPage] = useState(1);
+    const { data, isLoading, isError } = useLatestCsvUploads();
 
-    const paginatedData = MOCK_DATA.slice(
+    const rows = useMemo<CsvUploadRow[]>(() => {
+        return (data?.results ?? []).map((item) => ({
+            id: item.id,
+            filename: item.filename,
+            status: toRowStatus(item.status),
+            records: item.record_count,
+            uploadedBy: toUploadedBy(item.uploaded_by_name),
+            timestamp: formatUploadedAt(item.uploaded_at),
+        }));
+    }, [data]);
+
+    useEffect(() => {
+        const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, rows.length]);
+
+    const paginatedData = rows.slice(
         (currentPage - 1) * PAGE_SIZE,
         currentPage * PAGE_SIZE,
     );
+
+    const emptyText = isLoading
+        ? "Loading upload history..."
+        : isError
+            ? "Failed to load upload history."
+            : "No upload history found.";
 
     return (
         <div className="p-4">
@@ -128,20 +168,20 @@ export const CsvUploadTable = () => {
                 columns={columns}
                 data={paginatedData}
                 rowKey={(r) => r.id}
-                emptyText="No upload history found."
+                emptyText={emptyText}
                 tableAdditionalHeader={
                     <div className="flex items-center justify-between px-6 py-5">
                         <AppText variant="smallHeader" className="text-base font-bold">
                             Upload History
                         </AppText>
                         <AppText variant="description" className="text-sm italic text-text-muted">
-                            Last 5 uploads
+                            Latest CSV uploads
                         </AppText>
                     </div>
                 }
                 pagination={{
                     currentPage,
-                    totalItems: MOCK_DATA.length,
+                    totalItems: rows.length,
                     pageSize: PAGE_SIZE,
                     onPageChange: setCurrentPage,
                     itemLabel: "uploads",

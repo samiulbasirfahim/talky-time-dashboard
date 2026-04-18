@@ -15,3 +15,7 @@ export * from './supervisor.query';
 export * from './operator.query';
 export * from './upload.query';
 export * from './profile.query';
+export * from './score-cutoff.query';
+export * from './dashboard.query';
+export * from './discipline.query';
+export * from './settings.query';
