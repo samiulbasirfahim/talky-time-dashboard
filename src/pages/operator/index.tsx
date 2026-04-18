@@ -4,10 +4,16 @@ import { UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 import { HeaderSection } from "../../components/header-section";
 import { useAppModal } from "../../hooks/useAppModal";
-import { useCreateOperator } from "../../lib/queries";
+import {
+    useCreateOperator,
+    useDeleteOperator,
+    useUpdateOperator,
+} from "../../lib/queries";
 import type {
     CreateOperatorPayload,
     OperatorCreateValidationErrors,
+    OperatorResponse,
+    UpdateOperatorPayload,
 } from "../../type";
 import {
     OperatorFormModal,
@@ -16,28 +22,8 @@ import {
 } from "./operator-form-modal";
 import { OperatorCards } from "./operator-cards";
 import {
-    INITIAL_OPERATOR_DATA,
     OperatorsTable,
-    type Operator,
 } from "./operataor-table";
-
-const GROUP_ID_TO_LABEL: Record<string, Operator["group"]> = {
-    medellin: "Medellin",
-    bogota: "Bogota",
-    remote: "Remote",
-};
-
-const GROUP_LABEL_TO_ID: Record<string, string> = {
-    medellin: "medellin",
-    bogota: "bogota",
-    remote: "remote",
-};
-
-const GROUP_COLOR_BY_ID: Record<string, Operator["groupColor"]> = {
-    medellin: "blue",
-    bogota: "blue-light",
-    remote: "gray",
-};
 
 function getFirstErrorMessage(value: unknown): string | undefined {
     if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
@@ -49,36 +35,24 @@ function getFirstErrorMessage(value: unknown): string | undefined {
     return undefined;
 }
 
-function mapGroupColor(groupName: string): Operator["groupColor"] {
-    const normalized = groupName.toLowerCase();
-    if (normalized.includes("medellin")) {
-        return "blue";
-    }
-    if (normalized.includes("bogota")) {
-        return "blue-light";
-    }
-    return "gray";
-}
-
-function mapStatus(status: string): Operator["status"] {
-    if (status === "active" || status === "inactive" || status === "pending") {
-        return status;
-    }
-    return "inactive";
-}
+type OperatorDeleteErrorResponse = {
+    detail?: string | string[];
+    non_field_errors?: string[];
+};
 
 export function Operator() {
     const operatorModal = useAppModal();
     const { mutateAsync: createOperator } = useCreateOperator();
-    const [operators, setOperators] = React.useState<Operator[]>(INITIAL_OPERATOR_DATA);
-    const [editingOperator, setEditingOperator] = React.useState<Operator | null>(null);
+    const { mutateAsync: updateOperator } = useUpdateOperator();
+    const { mutateAsync: deleteOperator } = useDeleteOperator();
+    const [editingOperator, setEditingOperator] = React.useState<OperatorResponse | null>(null);
 
     const handleOpenCreateOperator = () => {
         setEditingOperator(null);
         operatorModal.openModal();
     };
 
-    const handleOpenEditOperator = (operator: Operator) => {
+    const handleOpenEditOperator = (operator: OperatorResponse) => {
         setEditingOperator(operator);
         operatorModal.openModal();
     };
@@ -88,9 +62,28 @@ export function Operator() {
         setEditingOperator(null);
     };
 
-    const handleDeleteOperator = (operatorId: string) => {
-        setOperators((prev) => prev.filter((operator) => operator.id !== operatorId));
-        toast.success("Operator removed successfully.");
+    const handleDeleteOperator = async (operatorId: number) => {
+        try {
+            await deleteOperator(operatorId);
+            toast.success("Operator deleted successfully.");
+
+            if (editingOperator?.id === operatorId) {
+                handleCloseOperatorModal();
+            }
+        } catch (error) {
+            if (isAxiosError<OperatorDeleteErrorResponse>(error)) {
+                const apiMessage =
+                    getFirstErrorMessage(error.response?.data?.detail) ??
+                    getFirstErrorMessage(error.response?.data?.non_field_errors);
+
+                if (apiMessage) {
+                    toast.error(apiMessage);
+                    return;
+                }
+            }
+
+            toast.error("Failed to delete operator. Please try again.");
+        }
     };
 
     const handleSubmitOperator = async (
@@ -111,28 +104,6 @@ export function Operator() {
             return localValidationErrors;
         }
 
-        const normalizedGroupId = values.groupId || "remote";
-        const updatedFields = {
-            name: values.operatorName,
-            id: values.operatorId || `OP-${Math.floor(Math.random() * 9000) + 1000}`,
-            group: GROUP_ID_TO_LABEL[normalizedGroupId] || "Remote",
-            groupColor: GROUP_COLOR_BY_ID[normalizedGroupId] || "gray",
-            shift: values.shift,
-            supervisorName: values.supervisorName || "",
-        };
-
-        if (editingOperator) {
-            setOperators((prev) =>
-                prev.map((operator) =>
-                    operator.id === editingOperator.id
-                        ? { ...operator, ...updatedFields }
-                        : operator,
-                ),
-            );
-            toast.success("Operator updated successfully.");
-            return null;
-        }
-
         const groupAsNumber = Number(values.groupId);
         if (Number.isNaN(groupAsNumber)) {
             return {
@@ -140,29 +111,33 @@ export function Operator() {
             };
         }
 
-        const payload: CreateOperatorPayload = {
-            operator_id: values.operatorId.trim(),
-            full_name: values.operatorName.trim(),
-            group: groupAsNumber,
-            shift: values.shift === "day" ? "DAY" : "NIGHT",
-        };
-
         try {
-            const createdOperator = await createOperator(payload);
-            const nextOperator: Operator = {
-                id: createdOperator.operator_id,
-                name: createdOperator.full_name || createdOperator.operator_name,
-                group: createdOperator.group_name || "Unknown Group",
-                groupColor: mapGroupColor(createdOperator.group_name || ""),
-                shift: createdOperator.shift === "DAY" ? "day" : "night",
-                supervisorName: "",
-                activeProfiles: [],
-                totalBonuses: createdOperator.total_bonus_usd ?? 0,
-                status: mapStatus(createdOperator.status),
-            };
+            if (editingOperator) {
+                const payload: UpdateOperatorPayload = {
+                    operator_id: values.operatorId.trim(),
+                    full_name: values.operatorName.trim(),
+                    group: groupAsNumber,
+                    shift: values.shift === "day" ? "DAY" : "NIGHT",
+                };
 
-            setOperators((prev) => [nextOperator, ...prev]);
-            toast.success("Operator created successfully.");
+                await updateOperator({
+                    id: editingOperator.id,
+                    payload,
+                });
+
+                toast.success("Operator updated successfully.");
+            } else {
+                const payload: CreateOperatorPayload = {
+                    operator_id: values.operatorId.trim(),
+                    full_name: values.operatorName.trim(),
+                    group: groupAsNumber,
+                    shift: values.shift === "day" ? "DAY" : "NIGHT",
+                };
+
+                await createOperator(payload);
+                toast.success("Operator created successfully.");
+            }
+
             return null;
         } catch (error) {
             if (isAxiosError<OperatorCreateValidationErrors>(error)) {
@@ -181,21 +156,26 @@ export function Operator() {
                 }
             }
 
-            toast.error("Failed to create operator. Please try again.");
+            toast.error(
+                editingOperator
+                    ? "Failed to update operator. Please try again."
+                    : "Failed to create operator. Please try again.",
+            );
             return {
-                operatorId: "Failed to create operator. Please try again.",
+                operatorId: editingOperator
+                    ? "Failed to update operator. Please try again."
+                    : "Failed to create operator. Please try again.",
             };
         }
     };
 
     const defaultValues: Partial<OperatorFormValues> | undefined = editingOperator
         ? {
-            operatorName: editingOperator.name,
-            operatorId: editingOperator.id,
-            groupId:
-                GROUP_LABEL_TO_ID[editingOperator.group.toLowerCase()] || "remote",
-            shift: editingOperator.shift,
-            supervisorName: editingOperator.supervisorName || "",
+            operatorName: editingOperator.full_name || editingOperator.operator_name,
+            operatorId: editingOperator.operator_id,
+            groupId: String(editingOperator.group ?? ""),
+            shift: editingOperator.shift === "NIGHT" ? "night" : "day",
+            supervisorName: "",
         }
         : undefined;
 
@@ -215,7 +195,6 @@ export function Operator() {
             <OperatorCards />
 
             <OperatorsTable
-                operators={operators}
                 onEditOperator={handleOpenEditOperator}
                 onDeleteOperator={handleDeleteOperator}
             />

@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { isAxiosError } from "axios";
 import { ArrowRight, ExternalLink, History } from "lucide-react";
+import toast from "react-hot-toast";
 import { AppButton } from "../../components/button";
 import { ErrorActionBanner } from "../../components/error-action-banner";
 import { ProfileTrendChart, type ProfileTrendTimeframe } from "../../components/profile-trend-chart";
@@ -16,8 +18,22 @@ import {
     TableActions,
     type TableColumn,
 } from "../../components/table";
+import {
+    useCreateProfile,
+    PROFILES_PAGE_LIMIT,
+    useDeleteProfile,
+    usePaginatedProfiles,
+    useProfileDetails,
+    useUpdateProfile,
+} from "../../lib/queries";
+import type {
+    ProfileResponse,
+    ProfileValidationErrors,
+    UpdateProfilePayload,
+} from "../../type";
 
 type ProfileRow = {
+    id: number;
     profileId: string;
     name: string;
     threshold: string;
@@ -33,74 +49,6 @@ type LastReassignment = {
     assignedTo: string;
     time: string;
 };
-
-const INITIAL_PROFILE_ROWS: ProfileRow[] = [
-    {
-        profileId: "#DB-1-6",
-        name: "Sofia_VIP",
-        threshold: "25%",
-        operator: "Akash.65",
-        supervisorName: "Saruf Sr.",
-        isAssigned: true,
-        monEarning: "Cop$ 2,155",
-    },
-    {
-        profileId: "#DB-2-12",
-        name: "Luna_Pre",
-        threshold: "21%",
-        operator: "Unassigned",
-        supervisorName: "",
-        isAssigned: false,
-        monEarning: "Cop$ 2,155",
-    },
-    {
-        profileId: "#DB-1-9",
-        name: "Aria_Elite",
-        threshold: "25%",
-        operator: "Unassigned",
-        supervisorName: "",
-        isAssigned: false,
-        monEarning: "Cop$ 2,155",
-    },
-    {
-        profileId: "#DB-4-2",
-        name: "Diamond_ELT",
-        threshold: "21%",
-        operator: "Julian.m",
-        supervisorName: "",
-        isAssigned: true,
-        monEarning: "Cop$ 2,155",
-    },
-    {
-        profileId: "#DB-5-7",
-        name: "Nova_Core",
-        threshold: "21%",
-        operator: "Hasan.11",
-        supervisorName: "",
-        isAssigned: true,
-        monEarning: "Cop$ 2,090",
-    },
-    {
-        profileId: "#DB-7-3",
-        name: "Luma_Gold",
-        threshold: "21%",
-        operator: "Unassigned",
-        supervisorName: "",
-        isAssigned: false,
-        monEarning: "Cop$ 1,980",
-    },
-    {
-        profileId: "#DB-9-8",
-        name: "Orion_Max",
-        threshold: "25%",
-        operator: "Rafi.22",
-        supervisorName: "",
-        isAssigned: true,
-        monEarning: "Cop$ 2,210",
-    },
-];
-
-const PAGE_SIZE = 4;
 
 const LAST_REASSIGNMENTS: LastReassignment[] = [
     {
@@ -119,7 +67,7 @@ const LAST_REASSIGNMENTS: LastReassignment[] = [
 
 const buildProfileColumns = (
     onEdit: (row: ProfileRow) => void,
-    onDelete: (profileId: string) => void,
+    onDelete: (row: ProfileRow) => Promise<void>,
 ): TableColumn<ProfileRow>[] => [
         {
             key: "profileId",
@@ -182,7 +130,7 @@ const buildProfileColumns = (
             render: (row) => (
                 <TableActions
                     onEdit={() => onEdit(row)}
-                    onDelete={() => onDelete(row.profileId)}
+                    onDelete={() => onDelete(row)}
                 />
             ),
         },
@@ -197,102 +145,229 @@ export function ProfileLeftSection({
     isCreateProfileModalOpen,
     onCloseCreateProfileModal,
 }: ProfileLeftSectionProps) {
-    const [profiles, setProfiles] = useState<ProfileRow[]>(INITIAL_PROFILE_ROWS);
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedTrendTab, setSelectedTrendTab] = useState<ProfileTrendTimeframe>("weekly");
+    const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+    const {
+        data: profileData,
+        isPending: isProfilesPending,
+        isError: isProfilesError,
+    } = usePaginatedProfiles(currentPage);
+    const { mutateAsync: createProfile } = useCreateProfile();
+    const { mutateAsync: updateProfile } = useUpdateProfile();
+    const { mutateAsync: deleteProfile } = useDeleteProfile();
+
+    const mappedProfiles = useMemo<ProfileRow[]>(() => {
+        return (profileData?.results ?? []).map((profile: ProfileResponse) => {
+            const resolvedOperatorName =
+                profile.current_operator?.full_name ||
+                profile.operator ||
+                "Unassigned";
+
+            return {
+                id: profile.id,
+                profileId: String(profile.profile_id),
+                name: profile.profile_name || profile.name,
+                threshold: profile.bonus_percentage_display || `${profile.bonus_percentage}%`,
+                operator: resolvedOperatorName,
+                supervisorName: "",
+                isAssigned: Boolean(profile.current_operator || profile.operator),
+                monEarning: Number(profile.monthly_earning ?? 0).toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }),
+            };
+        });
+    }, [profileData]);
+
+    const totalProfiles = profileData?.total_profiles ?? profileData?.count ?? 0;
+
+    const tableEmptyText = isProfilesPending
+        ? "Loading profiles..."
+        : isProfilesError
+            ? "Failed to load profiles."
+            : "No profiles found.";
     const {
         isOpen: isEditProfileModalOpen,
         openModal: openEditProfileModal,
         closeModal: closeEditProfileModal,
     } = useAppModal();
     const [editingProfile, setEditingProfile] = useState<ProfileRow | null>(null);
+    const [editingProfileId, setEditingProfileId] = useState<number | null>(null);
+    const { data: editingProfileDetails } = useProfileDetails(editingProfileId);
     const isProfileModalOpen = isCreateProfileModalOpen || isEditProfileModalOpen;
+
+    useEffect(() => {
+        setProfiles(mappedProfiles);
+    }, [mappedProfiles]);
 
     const handleEdit = (row: ProfileRow) => {
         setEditingProfile(row);
+        setEditingProfileId(row.id);
         openEditProfileModal();
     };
 
-    const handleDelete = (profileId: string) => {
-        setProfiles((prev) => {
-            const updated = prev.filter((profile) => profile.profileId !== profileId);
-            const newTotalPages = Math.max(1, Math.ceil(updated.length / PAGE_SIZE));
-            if (currentPage > newTotalPages) setCurrentPage(newTotalPages);
-            return updated;
-        });
+    const getFirstErrorMessage = (value: unknown): string | undefined => {
+        if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
+            return value[0];
+        }
+        if (typeof value === "string") {
+            return value;
+        }
+        return undefined;
+    };
+
+    const handleDelete = async (row: ProfileRow) => {
+        try {
+            await deleteProfile(row.id);
+            setProfiles((prev) => prev.filter((profile) => profile.id !== row.id));
+            toast.success("Profile deleted successfully.");
+        } catch (error) {
+            if (isAxiosError<ProfileValidationErrors>(error)) {
+                const apiMessage =
+                    getFirstErrorMessage(error.response?.data?.detail) ??
+                    getFirstErrorMessage(error.response?.data?.non_field_errors);
+
+                if (apiMessage) {
+                    toast.error(apiMessage);
+                    return;
+                }
+            }
+
+            toast.error("Failed to delete profile. Please try again.");
+        }
     };
 
     const handleCloseProfileModal = () => {
         closeEditProfileModal();
         onCloseCreateProfileModal();
         setEditingProfile(null);
+        setEditingProfileId(null);
     };
 
-    const handleSubmitProfile = (values: ProfileFormValues) => {
+    const handleSubmitProfile = async (values: ProfileFormValues) => {
         const isDetailsMode = Boolean(editingProfile);
 
-        if (isDetailsMode && editingProfile) {
-            setProfiles((prev) =>
-                prev.map((profile) => {
-                    if (profile.profileId !== editingProfile.profileId) {
-                        return profile;
-                    }
+        const trimmedProfileName = values.profileName.trim();
+        const trimmedProfileId = values.profileId.trim();
 
-                    return {
-                        ...profile,
-                        profileId: values.profileId,
-                        name: values.profileName,
-                        threshold: values.bonusPercentage,
-                        supervisorName: values.supervisorName || "",
-                    };
-                }),
-            );
+        if (!trimmedProfileName) {
+            toast.error("Profile name is required.");
+            return;
+        }
+
+        if (!trimmedProfileId) {
+            toast.error("Profile ID is required.");
+            return;
+        }
+
+        if (!/^\d+$/.test(trimmedProfileId)) {
+            toast.error("Profile ID must be numeric.");
+            return;
+        }
+
+        if (isDetailsMode && editingProfile) {
+            const payload: UpdateProfilePayload = {
+                profile_name: trimmedProfileName,
+                bonus_percentage: Number(values.bonusPercentage.replace("%", "")),
+                profile_id: trimmedProfileId,
+            };
+
+            try {
+                await updateProfile({
+                    id: editingProfile.id,
+                    payload,
+                });
+
+                setProfiles((prev) =>
+                    prev.map((profile) => {
+                        if (profile.id !== editingProfile.id) {
+                            return profile;
+                        }
+
+                        return {
+                            ...profile,
+                            profileId: values.profileId,
+                            name: values.profileName,
+                            threshold: values.bonusPercentage,
+                            supervisorName: values.supervisorName || "",
+                        };
+                    }),
+                );
+                toast.success("Profile updated successfully.");
+            } catch (error) {
+                if (isAxiosError<ProfileValidationErrors>(error)) {
+                    const apiMessage =
+                        getFirstErrorMessage(error.response?.data?.detail) ??
+                        getFirstErrorMessage(error.response?.data?.profile_name) ??
+                        getFirstErrorMessage(error.response?.data?.name) ??
+                        getFirstErrorMessage(error.response?.data?.profile_id) ??
+                        getFirstErrorMessage(error.response?.data?.bonus_percentage) ??
+                        getFirstErrorMessage(error.response?.data?.non_field_errors);
+
+                    if (apiMessage) {
+                        toast.error(apiMessage);
+                        return;
+                    }
+                }
+
+                toast.error("Failed to update profile. Please try again.");
+                return;
+            }
+
             handleCloseProfileModal();
             return;
         }
 
-        const nextId = values.profileId || `#DB-${profiles.length + 1}-1`;
-        const operatorName = values.operatorId.trim();
+        try {
+            await createProfile({
+                profile_id: trimmedProfileId,
+                profile_name: trimmedProfileName,
+                bonus_percentage: Number(values.bonusPercentage.replace("%", "")),
+                is_active: true,
+            });
 
-        const nextProfile: ProfileRow = {
-            profileId: nextId,
-            name: values.profileName,
-            threshold: values.bonusPercentage,
-            operator: operatorName || "Unassigned",
-            supervisorName: values.supervisorName || "",
-            isAssigned: Boolean(operatorName),
-            monEarning: "Cop$ 0",
-        };
+            toast.success("Profile created successfully.");
+            setCurrentPage(1);
+            handleCloseProfileModal();
+        } catch (error) {
+            if (isAxiosError<ProfileValidationErrors>(error)) {
+                const apiMessage =
+                    getFirstErrorMessage(error.response?.data?.detail) ??
+                    getFirstErrorMessage(error.response?.data?.profile_id) ??
+                    getFirstErrorMessage(error.response?.data?.profile_name) ??
+                    getFirstErrorMessage(error.response?.data?.name) ??
+                    getFirstErrorMessage(error.response?.data?.bonus_percentage) ??
+                    getFirstErrorMessage(error.response?.data?.non_field_errors);
 
-        setProfiles((prev) => [nextProfile, ...prev]);
-        setCurrentPage(1);
-        handleCloseProfileModal();
+                if (apiMessage) {
+                    toast.error(apiMessage);
+                    return;
+                }
+            }
+
+            toast.error("Failed to create profile. Please try again.");
+        }
     };
-
-    const profileIdOptions = useMemo(
-        () => [
-            { value: "", label: "Enter Profile Id" },
-            ...profiles.map((profile) => ({
-                value: profile.profileId,
-                label: profile.profileId,
-            })),
-        ],
-        [profiles],
-    );
 
     const modalDefaultValues: Partial<ProfileFormValues> | undefined = editingProfile
         ? {
-            profileName: editingProfile.name,
-            profileId: editingProfile.profileId,
-            bonusPercentage: editingProfile.threshold as BonusPercentage,
+            profileName:
+                editingProfileDetails?.profile_name ||
+                editingProfileDetails?.name ||
+                editingProfile.name,
+            profileId: String(editingProfileDetails?.profile_id ?? editingProfile.profileId),
+            bonusPercentage:
+                editingProfileDetails?.bonus_percentage === 25
+                    ? "25%"
+                    : editingProfileDetails?.bonus_percentage === 21
+                        ? "21%"
+                        : (editingProfile.threshold as BonusPercentage),
             supervisorName: editingProfile.supervisorName || "",
         }
         : undefined;
-
-    const paginatedData = profiles.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE,
-    );
 
     const profileColumns = buildProfileColumns(handleEdit, handleDelete);
 
@@ -307,9 +382,8 @@ export function ProfileLeftSection({
 
             <AppTable
                 columns={profileColumns}
-                data={paginatedData}
+                data={profiles}
                 rowKey={(row) => row.profileId}
-                emptyText="No profiles found."
                 tableAdditionalHeader={
                     <div className="flex items-center justify-between px-6 py-5">
                         <AppText variant="smallHeader" className="text-base font-bold">
@@ -327,11 +401,12 @@ export function ProfileLeftSection({
                 }
                 pagination={{
                     currentPage,
-                    totalItems: profiles.length,
-                    pageSize: PAGE_SIZE,
+                    totalItems: totalProfiles,
+                    pageSize: PROFILES_PAGE_LIMIT,
                     onPageChange: setCurrentPage,
                     itemLabel: "profiles",
                 }}
+                emptyText={tableEmptyText}
             />
 
             <section className="rounded-3xl border border-border bg-bg px-6 py-5 shadow-xs">
@@ -395,7 +470,6 @@ export function ProfileLeftSection({
                 onClose={handleCloseProfileModal}
                 onSubmit={handleSubmitProfile}
                 defaultValues={modalDefaultValues}
-                profileIdOptions={profileIdOptions}
             />
         </div>
     );

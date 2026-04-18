@@ -19,7 +19,14 @@ export const supervisorKeys = {
 export const operatorKeys = {
     all: () => ["operators"] as const,
     search: (query: string) => [...operatorKeys.all(), "search", query] as const,
-    details: (id: string) => [...operatorKeys.all(), "details", id] as const,
+    details: (id: string | number) => [...operatorKeys.all(), "details", id] as const,
     paginatedRoot: () => [...operatorKeys.all(), "paginated"] as const,
     paginated: (page: number) => [...operatorKeys.paginatedRoot(), page] as const,
+}
+
+export const profileKeys = {
+    all: () => ["profiles"] as const,
+    details: (id: string | number) => [...profileKeys.all(), "details", id] as const,
+    paginatedRoot: () => [...profileKeys.all(), "paginated"] as const,
+    paginated: (page: number) => [...profileKeys.paginatedRoot(), page] as const,
 }

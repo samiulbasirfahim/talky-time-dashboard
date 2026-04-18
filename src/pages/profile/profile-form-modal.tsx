@@ -1,6 +1,6 @@
 import React from "react";
 import { Info } from "lucide-react";
-import { AppDropdownField, AppInputField } from "../../components/form-field";
+import { AppInputField } from "../../components/form-field";
 import { FormModalShell } from "../../components/form-modal-shell";
 import { SegmentedTabBar } from "../../components/segmented-tab-bar";
 import { AppText } from "../../components/text";
@@ -18,9 +18,8 @@ export interface ProfileFormValues {
 interface ProfileFormModalProps {
     open: boolean;
     onClose: () => void;
-    onSubmit: (values: ProfileFormValues) => void;
+    onSubmit: (values: ProfileFormValues) => void | Promise<void>;
     defaultValues?: Partial<ProfileFormValues>;
-    profileIdOptions: Array<{ value: string; label: string }>;
 }
 
 const EMPTY_FORM: ProfileFormValues = {
@@ -36,9 +35,9 @@ export function ProfileFormModal({
     onClose,
     onSubmit,
     defaultValues,
-    profileIdOptions,
 }: ProfileFormModalProps) {
     const [formValues, setFormValues] = React.useState<ProfileFormValues>(EMPTY_FORM);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     React.useEffect(() => {
         if (!open) {
@@ -55,14 +54,21 @@ export function ProfileFormModal({
         }
 
         setFormValues(nextValues);
+        setIsSubmitting(false);
     }, [open, defaultValues]);
 
     const isDetailsMode = Boolean(defaultValues);
     const hasSupervisor = Boolean(formValues.supervisorName?.trim());
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        onSubmit(formValues);
+
+        try {
+            setIsSubmitting(true);
+            await onSubmit(formValues);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -76,9 +82,11 @@ export function ProfileFormModal({
                     ? "Onboard a Supervisor into the Architect ecosystem."
                     : "Onboard a new curator into the Architect ecosystem."
             }
-            submitLabel={isDetailsMode ? "Save" : "Create Profile"}
+            submitLabel={isDetailsMode ? (isSubmitting ? "Saving..." : "Save") : "Create Profile"}
             ariaLabel={isDetailsMode ? "Profile details" : "Create profile"}
             contentClassName="max-w-4xl rounded-[22px] p-0"
+            submitButtonDisabled={isSubmitting}
+            submitButtonLoading={isSubmitting}
         >
             <AppInputField
                 label="Profile Name"
@@ -89,38 +97,19 @@ export function ProfileFormModal({
                 placeholder="Enter Profile name"
             />
 
-            {!isDetailsMode ? (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <AppDropdownField
+            
+                <div className="grid grid-cols-2 gap-4">
+                    <AppInputField
                         label="Profile Id"
                         value={formValues.profileId}
-                        options={profileIdOptions}
                         onChange={(value) =>
                             setFormValues((prev) => ({ ...prev, profileId: value }))
                         }
+                        placeholder="Enter Profile Id"
                     />
+                                
 
-                    <AppInputField
-                        label="Operator Id"
-                        value={formValues.operatorId}
-                        onChange={(value) =>
-                            setFormValues((prev) => ({ ...prev, operatorId: value }))
-                        }
-                        placeholder="Enter Operator Id/Name"
-                    />
-                </div>
-            ) : (
-                <AppDropdownField
-                    label="Profile Id"
-                    value={formValues.profileId}
-                    options={profileIdOptions}
-                    onChange={(value) =>
-                        setFormValues((prev) => ({ ...prev, profileId: value }))
-                    }
-                />
-            )}
-
-            <div className="space-y-2 md:w-[50%]">
+            <div className="space-y-2">
                 <AppText variant="description" className="font-semibold text-text">
                     Bonus Percentage
                 </AppText>
@@ -135,6 +124,8 @@ export function ProfileFormModal({
                     }
                 />
             </div>
+                </div>
+
 
             {hasSupervisor && (
                 <AppInputField

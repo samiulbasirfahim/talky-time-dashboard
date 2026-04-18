@@ -1,5 +1,5 @@
 // screens/OperatorsTable.tsx
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import {
     AppTable,
@@ -12,118 +12,84 @@ import {
     type TableColumn,
 } from "../../components/table";
 import { AppText } from "../../components/text";
+import {
+    OPERATORS_PAGE_LIMIT,
+    usePaginatedOperators,
+} from "../../lib/queries";
+import type {
+    OperatorProfileSummary,
+    OperatorResponse,
+} from "../../type";
 
 export type ShiftType = "day" | "night";
-type StatusVariant = "active" | "inactive" | "pending";
 
 interface ActiveProfile {
     initials: string;
     color?: string;
 }
 
-export interface Operator {
-    id: string;
+type OperatorStatus = "active" | "inactive" | "pending";
+
+export interface OperatorRow {
+    id: number;
+    operatorCode: string;
     name: string;
     group: string;
     groupColor: "blue" | "blue-light" | "gray";
     shift: ShiftType;
-    supervisorName?: string;
     activeProfiles: ActiveProfile[];
     totalBonuses: number;
-    status: StatusVariant;
+    status: OperatorStatus;
+    operator: OperatorResponse;
 }
 
-export const INITIAL_OPERATOR_DATA: Operator[] = [
-    {
-        id: "OP-9421",
-        name: "Elena Rodriguez",
-        group: "Medellin",
-        groupColor: "blue",
-        shift: "day",
-        supervisorName: "Saruf Sr.",
-        activeProfiles: [
-            { initials: "A", color: "#3b5bdb" },
-            { initials: "B", color: "#f59f00" },
-            { initials: "C", color: "#2f9e44" },
-            { initials: "D", color: "#c2255c" },
-        ],
-        totalBonuses: 1240,
-        status: "active",
-    },
-    {
-        id: "OP-8812",
-        name: "Marco Beltran",
-        group: "Bogota",
-        groupColor: "blue-light",
-        shift: "night",
-        supervisorName: "Rasel Jr.",
-        activeProfiles: [{ initials: "1", color: "#adb5bd" }],
-        totalBonuses: 850,
-        status: "inactive",
-    },
-    {
-        id: "OP-4402",
-        name: "Sofia Jensen",
-        group: "Remote",
-        groupColor: "gray",
-        shift: "day",
-        supervisorName: "",
-        activeProfiles: [
-            { initials: "A", color: "#3b5bdb" },
-            { initials: "F", color: "#e67700" },
-        ],
-        totalBonuses: 2100,
-        status: "inactive",
-    },
-    {
-        id: "OP-1129",
-        name: "Lucas Viana",
-        group: "Medellin",
-        groupColor: "blue",
-        shift: "night",
-        supervisorName: "Sharuf Sr.",
-        activeProfiles: [{ initials: "C", color: "#3b5bdb" }],
-        totalBonuses: 1100,
-        status: "active",
-    },
-    {
-        id: "OP-3301",
-        name: "Ana Torres",
-        group: "Bogota",
-        groupColor: "blue-light",
-        shift: "day",
-        supervisorName: "",
-        activeProfiles: [
-            { initials: "A", color: "#3b5bdb" },
-            { initials: "B", color: "#f59f00" },
-            { initials: "X", color: "#9c36b5" },
-        ],
-        totalBonuses: 1750,
-        status: "active",
-    },
-    {
-        id: "OP-7720",
-        name: "Jorge Medina",
-        group: "Remote",
-        groupColor: "gray",
-        shift: "night",
-        supervisorName: "",
-        activeProfiles: [{ initials: "J", color: "#c2255c" }],
-        totalBonuses: 640,
-        status: "pending",
-    },
-];
+function mapGroupColor(groupName: string): OperatorRow["groupColor"] {
+    const normalized = groupName.toLowerCase();
+    if (normalized.includes("medellin")) {
+        return "blue";
+    }
+    if (normalized.includes("bogota")) {
+        return "blue-light";
+    }
+    return "gray";
+}
 
-const PAGE_SIZE = 4;
+function mapStatus(status: string): OperatorStatus {
+    if (status === "active" || status === "inactive" || status === "pending") {
+        return status;
+    }
+    return "inactive";
+}
+
+function extractProfileInitials(profile: OperatorProfileSummary): string {
+    const profileName = profile.profile_name?.trim();
+    if (!profileName) {
+        return "P";
+    }
+
+    const firstToken = profileName.split(",")[0]?.trim() || profileName;
+    const words = firstToken.split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+        return "P";
+    }
+
+    if (words.length === 1) {
+        return words[0].slice(0, 2).toUpperCase();
+    }
+
+    return `${words[0][0] ?? ""}${words[1][0] ?? ""}`.toUpperCase();
+}
+
+const PROFILE_COLORS = ["#3b5bdb", "#f59f00", "#2f9e44", "#c2255c", "#9c36b5", "#0ea5e9"];
 
 const buildColumns = (
-    onEdit: (row: Operator) => void,
-    onDelete: (id: string) => void,
-): TableColumn<Operator>[] => [
+    onEdit: (row: OperatorRow) => void,
+    onDelete: (id: number) => void | Promise<void>,
+): TableColumn<OperatorRow>[] => [
         {
             key: "name",
-            header: "Name",
-            render: (row) => <TableIdentity name={row.name} sub={`ID: ${row.id}`} />,
+            header: "Operator",
+            render: (row) => <TableIdentity name={row.name} sub={`ID: ${row.operatorCode}`} />,
         },
         {
             key: "group",
@@ -190,47 +156,63 @@ const buildColumns = (
     ];
 
 interface OperatorsTableProps {
-    operators: Operator[];
-    onEditOperator: (row: Operator) => void;
-    onDeleteOperator: (id: string) => void;
+    onEditOperator?: (operator: OperatorResponse) => void;
+    onDeleteOperator?: (id: number) => Promise<void> | void;
 }
 
 export const OperatorsTable = ({
-    operators,
     onEditOperator,
     onDeleteOperator,
 }: OperatorsTableProps) => {
     const [currentPage, setCurrentPage] = useState(1);
+    const {
+        data: paginatedData,
+        isPending,
+        isError,
+    } = usePaginatedOperators(currentPage);
 
-    useEffect(() => {
-        const totalPages = Math.max(1, Math.ceil(operators.length / PAGE_SIZE));
-        if (currentPage > totalPages) {
-            setCurrentPage(totalPages);
-        }
-    }, [currentPage, operators.length]);
+    const operators = useMemo<OperatorRow[]>(() => {
+        return (paginatedData?.results ?? []).map((operator: OperatorResponse) => ({
+            id: operator.id,
+            operatorCode: operator.operator_id,
+            name: operator.full_name || operator.operator_name,
+            group: operator.group_name,
+            groupColor: mapGroupColor(operator.group_name),
+            shift: operator.shift === "NIGHT" ? "night" : "day",
+            activeProfiles: (operator.current_profiles ?? []).map((profile, index) => ({
+                initials: extractProfileInitials(profile),
+                color: PROFILE_COLORS[index % PROFILE_COLORS.length],
+            })),
+            totalBonuses: Number(operator.total_bonus_usd ?? 0),
+            status: mapStatus(operator.status),
+            operator,
+        }));
+    }, [paginatedData]);
 
-    const handleEdit = (row: Operator) => onEditOperator(row);
+    const handleEdit = (row: OperatorRow) => onEditOperator?.(row.operator);
 
-    const handleDelete = (id: string) => onDeleteOperator(id);
-
-    const paginatedData = operators.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE,
-    );
+    const handleDelete = async (id: number) => {
+        await onDeleteOperator?.(id);
+    };
 
     const columns = buildColumns(handleEdit, handleDelete);
+    const emptyText = isPending
+        ? "Loading operators..."
+        : isError
+            ? "Failed to load operators."
+            : "No operators found.";
 
     return (
         <div className="p-4">
             <AppTable
                 columns={columns}
-                data={paginatedData}
-                rowKey={(r) => r.id}
-                emptyText="No operators found."
+                data={operators}
+                rowKey={(r) => String(r.id)}
+                emptyText={emptyText}
                 pagination={{
                     currentPage,
-                    totalItems: operators.length,
-                    pageSize: PAGE_SIZE,
+                    totalItems: paginatedData?.total_operator_count ?? paginatedData?.count ?? 0,
+                    pageSize: OPERATORS_PAGE_LIMIT,
                     onPageChange: setCurrentPage,
                     itemLabel: "operators",
                 }}

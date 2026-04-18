@@ -6,7 +6,11 @@ import type {
     CreateOperatorResponse,
     OperatorPaginatedResponse,
     OperatorResponse,
+    UpdateOperatorPayload,
+    UpdateOperatorResponse,
 } from "../../type";
+
+export const OPERATORS_PAGE_LIMIT = 10;
 
 export function useCreateOperator() {
     const queryClient = useQueryClient();
@@ -21,8 +25,58 @@ export function useCreateOperator() {
         },
         onSuccess: async () => {
             await queryClient.invalidateQueries({
-                queryKey: operatorKeys.paginatedRoot(),
+                queryKey: operatorKeys.all(),
             });
+        },
+    });
+}
+
+export function useUpdateOperator() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            id,
+            payload,
+        }: {
+            id: number;
+            payload: UpdateOperatorPayload;
+        }): Promise<UpdateOperatorResponse> => {
+            const response = await apiClient.patch<UpdateOperatorResponse>(
+                `/operations/operators/${id}/`,
+                payload,
+            );
+            return response.data;
+        },
+        onSuccess: async (_, variables) => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: operatorKeys.all(),
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: operatorKeys.details(variables.id),
+                }),
+            ]);
+        },
+    });
+}
+
+export function useDeleteOperator() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (id: number): Promise<void> => {
+            await apiClient.delete(`/operations/operators/${id}/`);
+        },
+        onSuccess: async (_, id) => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: operatorKeys.all(),
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: operatorKeys.details(id),
+                }),
+            ]);
         },
     });
 }
@@ -44,14 +98,14 @@ export function usePaginatedOperators(page: number) {
         queryKey: operatorKeys.paginated(page),
         queryFn: async (): Promise<OperatorPaginatedResponse> => {
             const response = await apiClient.get<OperatorPaginatedResponse>(
-                `/operations/operators/?page=${page}`,
+                `/operations/operators/?limit=${OPERATORS_PAGE_LIMIT}&page=${page}`,
             );
             return response.data;
         },
     });
 }
 
-export function useOperatorDetails(id: string) {
+export function useOperatorDetails(id: string | number) {
     return useQuery({
         queryKey: operatorKeys.details(id),
         queryFn: async (): Promise<OperatorResponse> => {

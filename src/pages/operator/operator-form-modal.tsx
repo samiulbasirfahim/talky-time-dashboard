@@ -145,6 +145,7 @@ export function OperatorFormModal({
             description={description}
             submitLabel={submitLabel}
             submitButtonDisabled={isSubmitting}
+            submitButtonLoading={isSubmitting}
             ariaLabel={mode === "create" ? "Create operator" : "Operator details"}
             contentClassName="max-w-4xl rounded-[22px] p-0"
         >
