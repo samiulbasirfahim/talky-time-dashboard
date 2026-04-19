@@ -1,44 +1,42 @@
 import React from "react";
+import { AppInputField } from "../../components/form-field";
 import { FormModalShell } from "../../components/form-modal-shell";
 import {
     SearchableDropdown,
     type SearchableDropdownOption,
 } from "../../components/searchable-dropdown";
-import { AppText } from "../../components/text";
+import { useDebounce } from "../../lib/hooks/debounce";
+import { useSearchOperators } from "../../lib/queries";
 
 export interface CashAdvanceFormValues {
+    operatorDbId: string;
     operatorName: string;
     operatorId: string;
     groupName: string;
     reason: string;
-    amount: string;
+    advancedAmount: string;
+    paidAmount: string;
     issueDate: string;
-    expiryDate: string;
-    interestRate: string;
-}
-
-export interface CashAdvanceOperatorOption extends SearchableDropdownOption {
-    operatorName: string;
-    groupName: string;
 }
 
 interface CashAdvanceModalProps {
     open: boolean;
     onClose: () => void;
-    onSubmit: (values: CashAdvanceFormValues) => void;
+    onSubmit: (values: CashAdvanceFormValues) => void | Promise<void>;
     defaultValues?: Partial<CashAdvanceFormValues>;
-    operatorOptions: CashAdvanceOperatorOption[];
 }
 
+type CashAdvanceFieldErrors = Partial<Record<"operatorDbId" | "reason" | "advancedAmount" | "paidAmount" | "issueDate", string>>;
+
 const EMPTY_FORM: CashAdvanceFormValues = {
+    operatorDbId: "",
     operatorName: "",
     operatorId: "",
     groupName: "",
     reason: "",
-    amount: "",
+    advancedAmount: "",
+    paidAmount: "",
     issueDate: "",
-    expiryDate: "",
-    interestRate: "21",
 };
 
 export function CashAdvanceModal({
@@ -46,9 +44,15 @@ export function CashAdvanceModal({
     onClose,
     onSubmit,
     defaultValues,
-    operatorOptions,
 }: CashAdvanceModalProps) {
     const [formValues, setFormValues] = React.useState<CashAdvanceFormValues>(EMPTY_FORM);
+    const [operatorSearch, setOperatorSearch] = React.useState("");
+    const [fieldErrors, setFieldErrors] = React.useState<CashAdvanceFieldErrors>({});
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const debouncedOperatorSearch = useDebounce(operatorSearch, 500);
+    const { data: operatorsData, isPending: isOperatorsPending } = useSearchOperators(
+        debouncedOperatorSearch,
+    );
 
     React.useEffect(() => {
         if (!open) return;
@@ -57,27 +61,103 @@ export function CashAdvanceModal({
             ...EMPTY_FORM,
             ...defaultValues,
         });
+        setFieldErrors({});
+        setOperatorSearch("");
+        setIsSubmitting(false);
     }, [open, defaultValues]);
 
-    const handleOperatorSelect = (operatorId: string) => {
-        const selectedOperator = operatorOptions.find(
-            (operator) => operator.value === operatorId,
+    const operatorOptions = React.useMemo<SearchableDropdownOption[]>(() => {
+        const baseOptions = (operatorsData?.results ?? []).map((operator) => ({
+            value: String(operator.id),
+            label: operator.full_name || operator.operator_name || `Operator #${operator.id}`,
+            subtitle: `ID: ${operator.operator_id} | ${operator.group_name}`,
+            keywords: [
+                operator.operator_id,
+                operator.operator_name,
+                operator.full_name,
+                operator.group_name,
+                operator.shift_display,
+            ],
+        }));
+
+        if (
+            !formValues.operatorDbId ||
+            baseOptions.some((option) => option.value === formValues.operatorDbId)
+        ) {
+            return baseOptions;
+        }
+
+        return [
+            {
+                value: formValues.operatorDbId,
+                label: formValues.operatorName,
+                subtitle: `ID: ${formValues.operatorId} | ${formValues.groupName}`,
+                keywords: [formValues.operatorName, formValues.operatorId, formValues.groupName],
+            },
+            ...baseOptions,
+        ];
+    }, [operatorsData, formValues]);
+
+    const handleOperatorSelect = (operatorDbId: string) => {
+        const selectedOperator = (operatorsData?.results ?? []).find(
+            (operator) => String(operator.id) === operatorDbId,
         );
+
+        if (!selectedOperator) {
+            return;
+        }
 
         setFormValues((prev) => ({
             ...prev,
-            operatorId,
-            operatorName: selectedOperator?.operatorName ?? prev.operatorName,
-            groupName: selectedOperator?.groupName ?? prev.groupName,
+            operatorDbId,
+            operatorName:
+                selectedOperator.full_name || selectedOperator.operator_name || prev.operatorName,
+            operatorId: selectedOperator.operator_id,
+            groupName: selectedOperator.group_name,
         }));
+
+        setFieldErrors((prev) => ({ ...prev, operatorDbId: undefined }));
     };
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        onSubmit(formValues);
+
+        const nextErrors: CashAdvanceFieldErrors = {};
+
+        if (!formValues.operatorDbId) {
+            nextErrors.operatorDbId = "Operator is required.";
+        }
+
+        if (!formValues.reason.trim()) {
+            nextErrors.reason = "Reason is required.";
+        }
+
+        if (!formValues.advancedAmount || Number(formValues.advancedAmount) <= 0) {
+            nextErrors.advancedAmount = "Advanced amount must be greater than 0.";
+        }
+
+        if (formValues.paidAmount && Number(formValues.paidAmount) < 0) {
+            nextErrors.paidAmount = "Paid amount cannot be negative.";
+        }
+
+        if (!formValues.issueDate) {
+            nextErrors.issueDate = "Issue date is required.";
+        }
+
+        if (Object.keys(nextErrors).length > 0) {
+            setFieldErrors(nextErrors);
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            await onSubmit(formValues);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const primaryLabel = defaultValues ? "Save" : "Create Profile";
+    const primaryLabel = defaultValues ? "Save" : "Create Cash Advance";
 
     return (
         <FormModalShell
@@ -85,150 +165,96 @@ export function CashAdvanceModal({
             onClose={onClose}
             onSubmit={handleSubmit}
             title="Cash Advances"
-            description="Onboard a new curator into the Architect ecosystem."
-            submitLabel={primaryLabel}
+            description="Manage operator cash advances and adjustments."
+            submitLabel={isSubmitting ? `${primaryLabel}...` : primaryLabel}
             ariaLabel="Cash advance form"
             contentClassName="max-w-3xl rounded-[22px] p-0"
+            submitButtonDisabled={isSubmitting}
+            submitButtonLoading={isSubmitting}
         >
-            <div className="space-y-2">
-                <AppText variant="description" className="font-semibold text-text">
-                    Operator Name
-                </AppText>
-                <input
-                    type="text"
-                    value={formValues.operatorName}
-                    onChange={(event) =>
-                        setFormValues((prev) => ({
-                            ...prev,
-                            operatorName: event.target.value,
-                        }))
-                    }
-                    placeholder="Enter Profile name"
-                    className="h-12 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text-secondary outline-none focus:border-text-focus focus:bg-white"
-                />
-            </div>
+            <SearchableDropdown
+                label="Operator Name"
+                value={formValues.operatorDbId}
+                options={operatorOptions}
+                onChange={handleOperatorSelect}
+                onSearchChange={setOperatorSearch}
+                placeholder={isOperatorsPending ? "Searching operators..." : "Search operator name/id"}
+                emptyText={isOperatorsPending ? "Searching..." : "No operators found."}
+                description={fieldErrors.operatorDbId}
+                descriptionClassName="text-red"
+            />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <SearchableDropdown
+                <AppInputField
                     label="Operator Id"
                     value={formValues.operatorId}
-                    options={operatorOptions}
-                    onChange={handleOperatorSelect}
-                    placeholder="Search operator id"
-                    maxResults={5}
+                    onChange={(value) => setFormValues((prev) => ({ ...prev, operatorId: value }))}
+                    readOnly
                 />
 
-                <div className="space-y-2">
-                    <AppText variant="description" className="font-semibold text-text">
-                        Group Name
-                    </AppText>
-                    <input
-                        type="text"
-                        value={formValues.groupName}
-                        onChange={(event) =>
-                            setFormValues((prev) => ({
-                                ...prev,
-                                groupName: event.target.value,
-                            }))
-                        }
-                        placeholder="Enter Group Name"
-                        className="h-10 w-full rounded-lg border border-border bg-tab-bg px-3 text-base text-text-secondary outline-none focus:border-text-focus focus:bg-white"
-                    />
-                </div>
-            </div>
-
-            <div className="space-y-2">
-                <AppText variant="description" className="font-semibold text-text">
-                    Reason
-                </AppText>
-                <input
-                    type="text"
-                    value={formValues.reason}
-                    onChange={(event) =>
-                        setFormValues((prev) => ({
-                            ...prev,
-                            reason: event.target.value,
-                        }))
-                    }
-                    placeholder="Enter Reason"
-                    className="h-12 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text-secondary outline-none focus:border-text-focus focus:bg-white"
+                <AppInputField
+                    label="Group Name"
+                    value={formValues.groupName}
+                    onChange={(value) => setFormValues((prev) => ({ ...prev, groupName: value }))}
+                    readOnly
                 />
             </div>
 
-            <div className="space-y-2">
-                <AppText variant="description" className="font-semibold text-text">
-                    Enter amount
-                </AppText>
-                <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formValues.amount}
-                    onChange={(event) =>
-                        setFormValues((prev) => ({
-                            ...prev,
-                            amount: event.target.value,
-                        }))
-                    }
-                    placeholder="Enter amount"
-                    className="h-12 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text-secondary outline-none focus:border-text-focus focus:bg-white"
-                />
-            </div>
+            <AppInputField
+                label="Reason"
+                value={formValues.reason}
+                onChange={(value) => {
+                    setFormValues((prev) => ({ ...prev, reason: value }));
+                    setFieldErrors((prev) => ({ ...prev, reason: undefined }));
+                }}
+                placeholder="Enter reason"
+                description={fieldErrors.reason}
+                descriptionClassName="text-red"
+            />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                    <AppText variant="description" className="font-semibold text-text">
-                        Issue Date
-                    </AppText>
-                    <input
-                        type="date"
-                        value={formValues.issueDate}
-                        onChange={(event) =>
-                            setFormValues((prev) => ({
-                                ...prev,
-                                issueDate: event.target.value,
-                            }))
-                        }
-                        className="h-12 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text-secondary outline-none focus:border-text-focus focus:bg-white"
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <AppText variant="description" className="font-semibold text-text">
-                        Expiry date
-                    </AppText>
-                    <input
-                        type="date"
-                        value={formValues.expiryDate}
-                        onChange={(event) =>
-                            setFormValues((prev) => ({
-                                ...prev,
-                                expiryDate: event.target.value,
-                            }))
-                        }
-                        className="h-12 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text-secondary outline-none focus:border-text-focus focus:bg-white"
-                    />
-                </div>
-            </div>
-
-            <div className="space-y-2 md:w-[48%]">
-                <AppText variant="description" className="font-semibold text-text">
-                    Interest Rate
-                </AppText>
-                <input
+                <AppInputField
+                    label="Advanced Amount"
                     type="number"
                     min="0"
                     step="0.01"
-                    value={formValues.interestRate}
-                    onChange={(event) =>
-                        setFormValues((prev) => ({
-                            ...prev,
-                            interestRate: event.target.value,
-                        }))
-                    }
-                    className="h-12 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text-secondary outline-none focus:border-text-focus focus:bg-white"
+                    value={formValues.advancedAmount}
+                    onChange={(value) => {
+                        setFormValues((prev) => ({ ...prev, advancedAmount: value }));
+                        setFieldErrors((prev) => ({ ...prev, advancedAmount: undefined }));
+                    }}
+                    placeholder="Enter advanced amount"
+                    description={fieldErrors.advancedAmount}
+                    descriptionClassName="text-red"
+                />
+
+                <AppInputField
+                    label="Paid Amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formValues.paidAmount}
+                    onChange={(value) => {
+                        setFormValues((prev) => ({ ...prev, paidAmount: value }));
+                        setFieldErrors((prev) => ({ ...prev, paidAmount: undefined }));
+                    }}
+                    placeholder="Enter paid amount"
+                    description={fieldErrors.paidAmount}
+                    descriptionClassName="text-red"
                 />
             </div>
+
+            <AppInputField
+                label="Issue Date"
+                type="date"
+                value={formValues.issueDate}
+                onChange={(value) => {
+                    setFormValues((prev) => ({ ...prev, issueDate: value }));
+                    setFieldErrors((prev) => ({ ...prev, issueDate: undefined }));
+                }}
+                description={fieldErrors.issueDate}
+                descriptionClassName="text-red"
+            />
         </FormModalShell>
     );
 }

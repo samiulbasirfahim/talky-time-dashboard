@@ -31,6 +31,23 @@ export const profileKeys = {
     paginated: (page: number) => [...profileKeys.paginatedRoot(), page] as const,
 }
 
+export const debtsKeys = {
+    all: () => ["debts"] as const,
+    page: (page: number) => [...debtsKeys.all(), "page", page] as const,
+}
+
+export const cashAdvanceKeys = {
+    all: () => ["cash-advances"] as const,
+    page: (page: number) => [...cashAdvanceKeys.all(), "page", page] as const,
+    details: (id: number | string) => [...cashAdvanceKeys.all(), "details", id] as const,
+}
+
+export const discountKeys = {
+    all: () => ["discounts"] as const,
+    page: (page: number) => [...discountKeys.all(), "page", page] as const,
+    details: (id: number | string) => [...discountKeys.all(), "details", id] as const,
+}
+
 export const csvKeys = {
     all: () => ["csv"] as const,
     latest: () => [...csvKeys.all(), "latest"] as const,
@@ -52,6 +69,10 @@ export const disciplineKeys = {
     warnings: () => [...disciplineKeys.all(), "warnings"] as const,
     warningLogsRoot: () => [...disciplineKeys.all(), "warning-logs"] as const,
     warningLogs: (page: number) => [...disciplineKeys.warningLogsRoot(), page] as const,
+    reprimandsRoot: () => [...disciplineKeys.all(), "reprimands"] as const,
+    recentReprimands: (limit: number) => [...disciplineKeys.reprimandsRoot(), "recent", limit] as const,
+    paginatedReprimandsRoot: () => [...disciplineKeys.reprimandsRoot(), "paginated"] as const,
+    paginatedReprimands: (page: number) => [...disciplineKeys.paginatedReprimandsRoot(), page] as const,
 }
 
 export const settingsKeys = {

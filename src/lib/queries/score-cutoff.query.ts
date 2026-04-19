@@ -44,14 +44,13 @@ export function usePaginatedScoreCutoffs(page: number) {
 
 export function useDownloadScoreCutoffCsv() {
     return useMutation({
-        mutationFn: async (cutoffId: number): Promise<string> => {
+        mutationFn: async (): Promise<string> => {
             const response = await apiClient.get<string>(
-                `/operations/score-cutoffs/${cutoffId}/csv`,
+                `/operations/score-cutoffs/latest/csv/`,
                 {
                     responseType: "text",
                 },
             );
-
             return response.data;
         },
         onSuccess: (csvData) => {

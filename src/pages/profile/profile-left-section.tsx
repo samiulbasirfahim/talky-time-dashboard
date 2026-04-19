@@ -14,12 +14,17 @@ import {
     type ProfileFormValues,
 } from "./profile-form-modal";
 import {
+    ProfileReassignmentModal,
+    type ProfileReassignmentFormValues,
+} from "./profile-reassignment-modal";
+import {
     AppTable,
     TableActions,
     type TableColumn,
 } from "../../components/table";
 import {
     useCreateProfile,
+    useDeleteOperator,
     PROFILES_PAGE_LIMIT,
     useDeleteProfile,
     usePaginatedProfiles,
@@ -156,6 +161,10 @@ export function ProfileLeftSection({
     const { mutateAsync: createProfile } = useCreateProfile();
     const { mutateAsync: updateProfile } = useUpdateProfile();
     const { mutateAsync: deleteProfile } = useDeleteProfile();
+    const {
+        mutateAsync: deleteOperator,
+        isPending: isDeletingAssignedOperator,
+    } = useDeleteOperator();
 
     const mappedProfiles = useMemo<ProfileRow[]>(() => {
         return (profileData?.results ?? []).map((profile: ProfileResponse) => {
@@ -194,9 +203,17 @@ export function ProfileLeftSection({
         openModal: openEditProfileModal,
         closeModal: closeEditProfileModal,
     } = useAppModal();
+    const {
+        isOpen: isReassignmentModalOpen,
+        openModal: openReassignmentModal,
+        closeModal: closeReassignmentModal,
+    } = useAppModal();
     const [editingProfile, setEditingProfile] = useState<ProfileRow | null>(null);
     const [editingProfileId, setEditingProfileId] = useState<number | null>(null);
-    const { data: editingProfileDetails } = useProfileDetails(editingProfileId);
+    const {
+        data: editingProfileDetails,
+        refetch: refetchEditingProfileDetails,
+    } = useProfileDetails(editingProfileId);
     const isProfileModalOpen = isCreateProfileModalOpen || isEditProfileModalOpen;
 
     useEffect(() => {
@@ -207,6 +224,58 @@ export function ProfileLeftSection({
         setEditingProfile(row);
         setEditingProfileId(row.id);
         openEditProfileModal();
+    };
+
+    const handleSubmitReassignment = async (values: ProfileReassignmentFormValues) => {
+        const reassignedOperatorName = values.operatorName.trim() || "Assigned Operator";
+
+        setProfiles((prev) =>
+            prev.map((profile) => {
+                if (!values.profileIds.includes(String(profile.id))) {
+                    return profile;
+                }
+
+                return {
+                    ...profile,
+                    operator: reassignedOperatorName,
+                    isAssigned: true,
+                };
+            }),
+        );
+
+        toast.success(`Reassigned ${values.profileIds.length} profile(s) successfully.`);
+    };
+
+    const handleDeleteAssignedOperator = async () => {
+        const assignedOperatorId = editingProfileDetails?.current_operator?.id;
+
+        if (!assignedOperatorId) {
+            toast.error("No assigned operator found for this profile.");
+            return;
+        }
+
+        try {
+            await deleteOperator(assignedOperatorId);
+
+            setProfiles((prev) =>
+                prev.map((profile) => {
+                    if (profile.id !== editingProfile?.id) {
+                        return profile;
+                    }
+
+                    return {
+                        ...profile,
+                        operator: "Unassigned",
+                        isAssigned: false,
+                    };
+                }),
+            );
+
+            await refetchEditingProfileDetails();
+            toast.success("Assigned operator deleted successfully.");
+        } catch {
+            toast.error("Failed to delete assigned operator. Please try again.");
+        }
     };
 
     const getFirstErrorMessage = (value: unknown): string | undefined => {
@@ -370,6 +439,14 @@ export function ProfileLeftSection({
         : undefined;
 
     const profileColumns = buildProfileColumns(handleEdit, handleDelete);
+    const reassignmentProfileOptions = useMemo(() => {
+        return profiles.map((profile) => ({
+            value: String(profile.id),
+            label: profile.name,
+            subtitle: `ID: ${profile.profileId}`,
+            keywords: [profile.name, profile.profileId, profile.operator],
+        }));
+    }, [profiles]);
 
     return (
         <div className="space-y-4">
@@ -377,7 +454,7 @@ export function ProfileLeftSection({
                 text="Reassignment Required"
                 description="Profiles 'Sofia_VIP', 'Luna_Premium', 'Aria_Elite' are currently offline due to operator sickness."
                 buttonText="Reassign now"
-                onPress={() => { }}
+                onPress={openReassignmentModal}
             />
 
             <AppTable
@@ -470,6 +547,16 @@ export function ProfileLeftSection({
                 onClose={handleCloseProfileModal}
                 onSubmit={handleSubmitProfile}
                 defaultValues={modalDefaultValues}
+                assignedOperator={editingProfileDetails?.current_operator ?? null}
+                onDeleteAssignedOperator={handleDeleteAssignedOperator}
+                isDeletingAssignedOperator={isDeletingAssignedOperator}
+            />
+
+            <ProfileReassignmentModal
+                open={isReassignmentModalOpen}
+                onClose={closeReassignmentModal}
+                profileOptions={reassignmentProfileOptions}
+                onSubmit={handleSubmitReassignment}
             />
         </div>
     );

@@ -66,7 +66,7 @@ export function useDeleteOperator() {
 
     return useMutation({
         mutationFn: async (id: number): Promise<void> => {
-            await apiClient.delete(`/operations/operators/${id}/`);
+            await apiClient.delete(`/operations/operators/${id}/?confirm=true`);
         },
         onSuccess: async (_, id) => {
             await Promise.all([

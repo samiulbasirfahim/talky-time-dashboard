@@ -1,5 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { isAxiosError } from "axios";
 import { Plus } from "lucide-react";
+import toast from "react-hot-toast";
+import { useLocation, useNavigate } from "react-router";
 import { AppButton } from "../../components/button";
 import {
     AppTable,
@@ -9,27 +12,43 @@ import {
 } from "../../components/table";
 import { AppText } from "../../components/text";
 import {
+    useCreateCashAdvance,
+    useCreateDiscount,
+    DISCIPLINE_REPRIMAND_PAGE_SIZE,
+    useDeleteCashAdvance,
+    useDeleteDiscount,
+    useCreateDebt,
+    useDeleteDebt,
+    usePaginatedDiscounts,
+    usePaginatedCashAdvances,
+    usePaginatedDebts,
+    usePaginatedDisciplinaryReprimands,
+    useUpdateDiscount,
+    useUpdateCashAdvance,
+    useUpdateDebt,
+} from "../../lib/queries";
+import {
     CashAdvanceModal,
     type CashAdvanceFormValues,
-    type CashAdvanceOperatorOption,
 } from "./cash-advance-modal";
 import {
     DiscountModal,
     type DiscountFormValues,
-    type DiscountOperatorOption,
 } from "./discount-modal";
 import {
     DebtFormModal,
     type DebtFormValues,
-    type DebtOperatorOption,
 } from "./debt-form-modal";
+import type { CashAdvanceItem, DebtItem, DiscountItem, DisciplinaryReprimandItem } from "../../type";
 
 type DebtTab = "debts" | "cash-advances" | "reprimands" | "discount";
 
 interface DebtRow {
     id: string;
+    operatorDbId?: string;
     operatorName: string;
     operatorId: string;
+    groupName?: string;
     amount: string;
     date: string;
     category: DebtTab;
@@ -40,6 +59,16 @@ interface DebtRow {
     expiryDate?: string;
     interestRate?: string;
 }
+
+type DiscountValidationErrors = {
+    amount_cop?: string[];
+    operator_id?: string[];
+    adjustment_date?: string[];
+    description?: string[];
+    detail?: string | string[];
+    non_field_errors?: string[];
+    [key: string]: string[] | string | undefined;
+};
 
 const PAGE_SIZE = 4;
 
@@ -105,6 +134,79 @@ const CATEGORY_ID_PREFIX: Record<DebtTab, string> = {
     discount: "DS",
 };
 
+const VALID_TABS = new Set<DebtTab>(["debts", "cash-advances", "reprimands", "discount"]);
+
+const parseTabFromHash = (hash: string): DebtTab | null => {
+    const normalized = hash.replace("#", "").trim() as DebtTab;
+
+    if (VALID_TABS.has(normalized)) {
+        return normalized;
+    }
+
+    return null;
+};
+
+const toDisplayDateSafe = (value?: string) => {
+    if (!value) return "-";
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+
+    return parsed.toLocaleDateString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+    });
+};
+
+const parseCopAmount = (item: DisciplinaryReprimandItem) => {
+    const raw = item.total_deduction ?? item.amount_cop ?? item.deduction_amount;
+    const numeric = typeof raw === "number" ? raw : Number(raw);
+
+    if (!Number.isFinite(numeric)) return "0";
+
+    return numeric.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
+};
+
+const parseDebtCopAmount = (item: DebtItem) => {
+    const raw = item.amount_cop ?? item.amount;
+    const numeric = typeof raw === "number" ? raw : Number(raw);
+
+    if (!Number.isFinite(numeric)) return "0";
+
+    return numeric.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
+};
+
+const parseCashAdvanceCopAmount = (item: CashAdvanceItem) => {
+    const raw = item.amount_cop ?? item.amount;
+    const numeric = typeof raw === "number" ? raw : Number(raw);
+
+    if (!Number.isFinite(numeric)) return "0";
+
+    return numeric.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
+};
+
+const parseDiscountCopAmount = (item: DiscountItem) => {
+    const raw = item.amount_cop ?? item.amount;
+    const numeric = typeof raw === "number" ? raw : Number(raw);
+
+    if (!Number.isFinite(numeric)) return "0";
+
+    return numeric.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
+};
+
 const toInputDate = (displayDate: string) => {
     const parsed = new Date(displayDate);
     if (Number.isNaN(parsed.getTime())) return "";
@@ -133,6 +235,28 @@ const normalizeAmount = (amount: string) => {
 };
 
 const parseAmount = (amount: string) => amount.replace(/[^0-9.]/g, "");
+
+const toApiAmountCop = (amount: string) => {
+    const numeric = Number(parseAmount(amount));
+
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+        return "";
+    }
+
+    return numeric.toFixed(2);
+};
+
+const getFirstErrorMessage = (value: unknown): string | undefined => {
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
+        return value[0];
+    }
+
+    if (typeof value === "string") {
+        return value;
+    }
+
+    return undefined;
+};
 
 const buildActionColumn = (
     onEdit: (row: DebtRow) => void,
@@ -207,35 +331,18 @@ const buildCashAdvanceColumns = (
             header: "Date",
             render: (row) => <AppText variant="description">{row.date}</AppText>,
         },
-        {
-            key: "status",
-            header: "Status",
-            render: (row) => {
-                const statusMap: Record<NonNullable<DebtRow["status"]>, string> = {
-                    approved: "bg-bg-focus text-text-focus",
-                    pending: "bg-bg-secondary text-text-secondary",
-                    rejected: "bg-red-light text-red",
-                };
-                const status = row.status ?? "pending";
-
-                return (
-                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusMap[status]}`}>
-                        {status}
-                    </span>
-                );
-            },
-        },
         buildActionColumn(onEdit, onDelete),
     ];
 
-const buildReprimandColumns = (
-    onEdit: (row: DebtRow) => void,
-    onDelete: (row: DebtRow) => void,
-): TableColumn<DebtRow>[] => [
+const buildReprimandColumns = (): TableColumn<DebtRow>[] => [
         {
             key: "operator",
             header: "Operator Name",
-            render: (row) => <TableIdentity name={row.operatorName} sub={`ID: ${row.operatorId}`} />,
+            render: (row) => (
+                <AppText variant="body" className="font-semibold">
+                    {row.operatorName}
+                </AppText>
+            ),
         },
         {
             key: "amount",
@@ -248,30 +355,14 @@ const buildReprimandColumns = (
         },
         {
             key: "warnings",
-            header: "Warning Count",
+            header: "Reprimands Count",
             render: (row) => {
                 const warningCount = row.warningCount ?? 0;
-                const warningLimit = row.warningLimit ?? 3;
 
                 return (
-                    <div className="inline-flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                            {Array.from({ length: warningLimit }).map((_, index) => (
-                                <span
-                                    key={`${row.id}-dot-${index}`}
-                                    className={`h-2 w-2 rounded-full ${index < warningCount ? "bg-red" : "bg-border"}`}
-                                />
-                            ))}
-                        </div>
-
-                        <AppText
-                            variant="description"
-                            className="font-semibold text-red"
-                            style={{ color: "var(--color-text-red)" }}
-                        >
-                            {warningCount}/{warningLimit}
-                        </AppText>
-                    </div>
+                    <AppText variant="body" className="font-semibold text-red">
+                        {warningCount}
+                    </AppText>
                 );
             },
         },
@@ -279,10 +370,6 @@ const buildReprimandColumns = (
             key: "date",
             header: "Date",
             render: (row) => <AppText variant="description">{row.date}</AppText>,
-        },
-        {
-            ...buildActionColumn(onEdit, onDelete),
-            header: "Action",
         },
     ];
 
@@ -321,15 +408,57 @@ const buildDiscountColumns = (
     ];
 
 export function TransactionsDebtsTable() {
-    const [activeTab, setActiveTab] = useState<DebtTab>("debts");
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<DebtTab>(() => parseTabFromHash(location.hash) ?? "debts");
     const [currentPage, setCurrentPage] = useState(1);
     const [rows, setRows] = useState<DebtRow[]>(MOCK_DEBT_ROWS);
     const [showDebtModal, setShowDebtModal] = useState(false);
     const [showCashAdvanceModal, setShowCashAdvanceModal] = useState(false);
     const [showDiscountModal, setShowDiscountModal] = useState(false);
     const [editingRow, setEditingRow] = useState<DebtRow | null>(null);
+    const {
+        data: reprimandsData,
+        isLoading: isReprimandsLoading,
+        isError: isReprimandsError,
+    } = usePaginatedDisciplinaryReprimands(currentPage, activeTab === "reprimands");
+    const {
+        data: debtsData,
+        isLoading: isDebtsLoading,
+        isError: isDebtsError,
+    } = usePaginatedDebts(currentPage, activeTab === "debts");
+    const {
+        data: cashAdvancesData,
+        isLoading: isCashAdvancesLoading,
+        isError: isCashAdvancesError,
+    } = usePaginatedCashAdvances(currentPage, activeTab === "cash-advances");
+    const {
+        data: discountsData,
+        isLoading: isDiscountsLoading,
+        isError: isDiscountsError,
+    } = usePaginatedDiscounts(currentPage, activeTab === "discount");
+    const { mutateAsync: createDebt } = useCreateDebt();
+    const { mutateAsync: updateDebt } = useUpdateDebt();
+    const { mutateAsync: deleteDebt } = useDeleteDebt();
+    const { mutateAsync: createCashAdvance } = useCreateCashAdvance();
+    const { mutateAsync: updateCashAdvance } = useUpdateCashAdvance();
+    const { mutateAsync: deleteCashAdvance } = useDeleteCashAdvance();
+    const { mutateAsync: createDiscount } = useCreateDiscount();
+    const { mutateAsync: updateDiscount } = useUpdateDiscount();
+    const { mutateAsync: deleteDiscount } = useDeleteDiscount();
 
     const activeTabConfig = TAB_CONFIG[activeTab];
+
+    useEffect(() => {
+        const tabFromHash = parseTabFromHash(location.hash);
+
+        if (!tabFromHash) {
+            return;
+        }
+
+        setActiveTab(tabFromHash);
+        setCurrentPage(1);
+    }, [location.hash]);
 
     const filteredData = useMemo(
         () => rows.filter((row) => row.category === activeTab),
@@ -341,38 +470,66 @@ export function TransactionsDebtsTable() {
         currentPage * PAGE_SIZE,
     );
 
-    const operatorOptions = useMemo<DebtOperatorOption[]>(() => {
-        const optionMap = new Map<string, DebtOperatorOption>();
+    const reprimandRows = useMemo<DebtRow[]>(() => {
+        return (reprimandsData?.results ?? []).map((item) => ({
+            id: String(item.operator_id ?? item.operator),
+            operatorName: item.operator_name,
+            operatorId: String(item.operator_id ?? item.operator),
+            amount: parseCopAmount(item),
+            date: toDisplayDateSafe(item.latest_reprimand_date),
+            category: "reprimands",
+            warningCount: item.reprimand_count ?? 0,
+            warningLimit: undefined,
+        }));
+    }, [reprimandsData]);
 
-        rows.forEach((row) => {
-            if (optionMap.has(row.operatorId)) return;
+    const debtRows = useMemo<DebtRow[]>(() => {
+        return (debtsData?.results ?? []).map((item) => ({
+            id: String(item.id),
+            operatorDbId: String(item.operator_db_id ?? item.operator),
+            operatorName: item.operator_name,
+            operatorId: item.operator_id,
+            groupName: item.group,
+            amount: parseDebtCopAmount(item),
+            date: toDisplayDateSafe(item.adjustment_date ?? item.issue_date ?? item.date),
+            category: "debts",
+            reason: item.reason || item.description,
+        }));
+    }, [debtsData]);
 
-            optionMap.set(row.operatorId, {
-                value: row.operatorId,
-                label: row.operatorId,
-                subtitle: row.operatorName,
-                operatorName: row.operatorName,
-                groupName: "",
-                keywords: [row.operatorName, row.operatorId],
-            });
-        });
+    const cashAdvanceRows = useMemo<DebtRow[]>(() => {
+        return (cashAdvancesData?.results ?? []).map((item) => ({
+            id: String(item.id),
+            operatorDbId: String(item.operator_db_id ?? item.operator),
+            operatorName: item.operator_name,
+            operatorId: item.operator_id,
+            groupName: item.group_name,
+            amount: parseCashAdvanceCopAmount(item),
+            date: toDisplayDateSafe(item.adjustment_date ?? item.issue_date ?? item.date),
+            category: "cash-advances",
+            reason: item.reason || item.description,
+            status: "pending",
+        }));
+    }, [cashAdvancesData]);
 
-        return Array.from(optionMap.values());
-    }, [rows]);
-
-    const cashAdvanceOperatorOptions = useMemo<CashAdvanceOperatorOption[]>(
-        () => operatorOptions,
-        [operatorOptions],
-    );
-
-    const discountOperatorOptions = useMemo<DiscountOperatorOption[]>(
-        () => operatorOptions,
-        [operatorOptions],
-    );
+    const discountRows = useMemo<DebtRow[]>(() => {
+        return (discountsData?.results ?? []).map((item) => ({
+            id: String(item.id),
+            operatorDbId: String(item.operator_db_id ?? item.operator),
+            operatorName: item.operator_name,
+            operatorId: item.operator_id,
+            groupName: item.group,
+            amount: parseDiscountCopAmount(item),
+            date: toDisplayDateSafe(item.adjustment_date ?? item.issue_date ?? item.date),
+            category: "discount",
+            reason: item.reason || item.description,
+        }));
+    }, [discountsData]);
 
     const handleChangeTab = (tab: DebtTab) => {
         setActiveTab(tab);
         setCurrentPage(1);
+        navigate({ hash: tab }, { replace: true });
     };
 
     const handleCreateEntry = () => {
@@ -407,7 +564,60 @@ export function TransactionsDebtsTable() {
         setShowDebtModal(true);
     };
 
-    const handleDeleteDebt = (row: DebtRow) => {
+    const handleDeleteDebt = async (row: DebtRow) => {
+        if (row.category === "debts") {
+            const debtId = Number(row.id);
+
+            if (!Number.isFinite(debtId)) {
+                toast.error("Invalid debt id.");
+                return;
+            }
+
+            try {
+                await deleteDebt(debtId);
+                toast.success("Debt deleted successfully.");
+            } catch {
+                toast.error("Failed to delete debt. Please try again.");
+            }
+
+            return;
+        }
+
+        if (row.category === "cash-advances") {
+            const cashAdvanceId = Number(row.id);
+
+            if (!Number.isFinite(cashAdvanceId)) {
+                toast.error("Invalid cash advance id.");
+                return;
+            }
+
+            try {
+                await deleteCashAdvance(cashAdvanceId);
+                toast.success("Cash advance deleted successfully.");
+            } catch {
+                toast.error("Failed to delete cash advance. Please try again.");
+            }
+            return;
+        }
+
+        if (row.category === "discount") {
+            const discountId = Number(row.id);
+
+            if (!Number.isFinite(discountId)) {
+                toast.error("Invalid discount id.");
+                return;
+            }
+
+            try {
+                await deleteDiscount(discountId);
+                toast.success("Discount deleted successfully.");
+            } catch {
+                toast.error("Failed to delete discount. Please try again.");
+            }
+
+            return;
+        }
+
         setRows((prev) => {
             const nextRows = prev.filter((item) => item.id !== row.id);
             const filteredRemaining = nextRows.filter((item) => item.category === activeTab);
@@ -420,7 +630,7 @@ export function TransactionsDebtsTable() {
     const columnsByTab: Record<DebtTab, TableColumn<DebtRow>[]> = {
         debts: buildDebtColumns(handleEditEntry, handleDeleteDebt),
         "cash-advances": buildCashAdvanceColumns(handleEditEntry, handleDeleteDebt),
-        reprimands: buildReprimandColumns(handleEditEntry, handleDeleteDebt),
+        reprimands: buildReprimandColumns(),
         discount: buildDiscountColumns(handleEditEntry, handleDeleteDebt),
     };
 
@@ -439,10 +649,82 @@ export function TransactionsDebtsTable() {
         setEditingRow(null);
     };
 
-    const handleSubmitDebt = (values: DebtFormValues) => {
+    const handleSubmitDebt = async (values: DebtFormValues) => {
+        const operatorDbId = Number(values.operatorDbId);
+        const amountCop = toApiAmountCop(values.amount);
+
+        if (!Number.isFinite(operatorDbId) || operatorDbId <= 0) {
+            toast.error("Please select a valid operator.");
+            return;
+        }
+
+        if (!amountCop) {
+            toast.error("Please provide a valid amount.");
+            return;
+        }
+
+        if (!values.issueDate) {
+            toast.error("Please provide a valid issue date.");
+            return;
+        }
+
+        if (!values.reason.trim()) {
+            toast.error("Reason is required.");
+            return;
+        }
+
+        if (editingRow && editingRow.category === "debts") {
+            const debtId = Number(editingRow.id);
+
+            if (!Number.isFinite(debtId)) {
+                toast.error("Invalid debt id.");
+                return;
+            }
+
+            try {
+                await updateDebt({
+                    id: debtId,
+                    payload: {
+                        operator_id: operatorDbId,
+                        amount_cop: amountCop,
+                        adjustment_date: values.issueDate,
+                        description: values.reason.trim(),
+                    },
+                });
+
+                toast.success("Debt updated successfully.");
+                handleCloseDebtModal();
+            } catch {
+                toast.error("Failed to update debt. Please try again.");
+            }
+
+            return;
+        }
+
+        if (activeTab === "debts") {
+            try {
+                await createDebt({
+                    operator_id: operatorDbId,
+                    amount_cop: amountCop,
+                    adjustment_date: values.issueDate,
+                    description: values.reason.trim(),
+                });
+
+                toast.success("Debt created successfully.");
+                setCurrentPage(1);
+                handleCloseDebtModal();
+            } catch {
+                toast.error("Failed to create debt. Please try again.");
+            }
+
+            return;
+        }
+
         const payload: Omit<DebtRow, "id" | "category"> = {
+            operatorDbId: values.operatorDbId,
             operatorName: values.operatorName,
             operatorId: values.operatorId,
+            groupName: values.groupName,
             amount: normalizeAmount(values.amount),
             date: toDisplayDate(values.issueDate),
             reason: values.reason,
@@ -478,18 +760,90 @@ export function TransactionsDebtsTable() {
         handleCloseDebtModal();
     };
 
-    const handleSubmitCashAdvance = (values: CashAdvanceFormValues) => {
+    const handleSubmitCashAdvance = async (values: CashAdvanceFormValues) => {
+        const operatorDbId = Number(values.operatorDbId);
+        const amountCop = toApiAmountCop(values.advancedAmount);
+
+        if (!Number.isFinite(operatorDbId) || operatorDbId <= 0) {
+            toast.error("Please select a valid operator.");
+            return;
+        }
+
+        if (!amountCop) {
+            toast.error("Please provide a valid amount.");
+            return;
+        }
+
+        if (!values.issueDate) {
+            toast.error("Please provide a valid issue date.");
+            return;
+        }
+
+        if (!values.reason.trim()) {
+            toast.error("Reason is required.");
+            return;
+        }
+
+        if (editingRow && editingRow.category === "cash-advances") {
+            const cashAdvanceId = Number(editingRow.id);
+
+            if (!Number.isFinite(cashAdvanceId)) {
+                toast.error("Invalid cash advance id.");
+                return;
+            }
+
+            try {
+                await updateCashAdvance({
+                    id: cashAdvanceId,
+                    payload: {
+                        operator_id: operatorDbId,
+                        amount_cop: amountCop,
+                        adjustment_date: values.issueDate,
+                        description: values.reason.trim(),
+                    },
+                });
+
+                toast.success("Cash advance updated successfully.");
+                handleCloseCashAdvanceModal();
+            } catch {
+                toast.error("Failed to update cash advance. Please try again.");
+            }
+
+            return;
+        }
+
+        if (activeTab === "cash-advances") {
+            try {
+                await createCashAdvance({
+                    operator_id: operatorDbId,
+                    amount_cop: amountCop,
+                    adjustment_date: values.issueDate,
+                    description: values.reason.trim(),
+                });
+
+                toast.success("Cash advance created successfully.");
+                setCurrentPage(1);
+                handleCloseCashAdvanceModal();
+            } catch {
+                toast.error("Failed to create cash advance. Please try again.");
+            }
+
+            return;
+        }
+
         const payload: Omit<DebtRow, "id" | "category"> = {
+            operatorDbId: values.operatorDbId,
             operatorName: values.operatorName,
             operatorId: values.operatorId,
-            amount: normalizeAmount(values.amount),
+            groupName: values.groupName,
+            amount: normalizeAmount(values.advancedAmount),
             date: toDisplayDate(values.issueDate),
             reason: values.reason,
             status: "pending",
             warningCount: undefined,
             warningLimit: undefined,
-            expiryDate: toDisplayDate(values.expiryDate),
-            interestRate: values.interestRate,
+            expiryDate: undefined,
+            interestRate: undefined,
         };
 
         if (editingRow) {
@@ -517,10 +871,86 @@ export function TransactionsDebtsTable() {
         handleCloseCashAdvanceModal();
     };
 
-    const handleSubmitDiscount = (values: DiscountFormValues) => {
+    const handleSubmitDiscount = async (values: DiscountFormValues) => {
+        const operatorDbId = Number(values.operatorDbId);
+        const amountCop = toApiAmountCop(values.amount);
+
+        if (editingRow && editingRow.category === "discount") {
+            const discountId = Number(editingRow.id);
+
+            if (!Number.isFinite(discountId)) {
+                toast.error("Invalid discount id.");
+                return;
+            }
+
+            try {
+                await updateDiscount({
+                    id: discountId,
+                    payload: {
+                        operator_id: operatorDbId,
+                        amount_cop: amountCop,
+                        adjustment_date: values.issueDate,
+                        description: values.reason.trim(),
+                    },
+                });
+
+                toast.success("Discount updated successfully.");
+                handleCloseDiscountModal();
+            } catch (error) {
+                if (isAxiosError<DiscountValidationErrors>(error)) {
+                    const apiMessage =
+                        getFirstErrorMessage(error.response?.data?.amount_cop) ??
+                        getFirstErrorMessage(error.response?.data?.detail) ??
+                        getFirstErrorMessage(error.response?.data?.non_field_errors);
+
+                    if (apiMessage) {
+                        toast.error(apiMessage);
+                        return;
+                    }
+                }
+
+                toast.error("Failed to update discount. Please try again.");
+            }
+
+            return;
+        }
+
+        if (activeTab === "discount") {
+            try {
+                await createDiscount({
+                    operator_id: operatorDbId,
+                    amount_cop: amountCop,
+                    adjustment_date: values.issueDate,
+                    description: values.reason.trim(),
+                });
+
+                toast.success("Discount created successfully.");
+                setCurrentPage(1);
+                handleCloseDiscountModal();
+            } catch (error) {
+                if (isAxiosError<DiscountValidationErrors>(error)) {
+                    const apiMessage =
+                        getFirstErrorMessage(error.response?.data?.amount_cop) ??
+                        getFirstErrorMessage(error.response?.data?.detail) ??
+                        getFirstErrorMessage(error.response?.data?.non_field_errors);
+
+                    if (apiMessage) {
+                        toast.error(apiMessage);
+                        return;
+                    }
+                }
+
+                toast.error("Failed to create discount. Please try again.");
+            }
+
+            return;
+        }
+
         const payload: Omit<DebtRow, "id" | "category"> = {
+            operatorDbId: values.operatorDbId,
             operatorName: values.operatorName,
             operatorId: values.operatorId,
+            groupName: values.groupName,
             amount: normalizeAmount(values.amount),
             date: toDisplayDate(values.issueDate),
             reason: values.reason,
@@ -558,9 +988,10 @@ export function TransactionsDebtsTable() {
 
     const defaultValues: Partial<DebtFormValues> | undefined = editingRow
         ? {
+            operatorDbId: editingRow.operatorDbId ?? "",
             operatorName: editingRow.operatorName,
             operatorId: editingRow.operatorId,
-            groupName: "",
+            groupName: editingRow.groupName ?? "",
             reason: editingRow.reason ?? "",
             amount: parseAmount(editingRow.amount),
             issueDate: toInputDate(editingRow.date),
@@ -569,35 +1000,85 @@ export function TransactionsDebtsTable() {
 
     const cashAdvanceDefaultValues: Partial<CashAdvanceFormValues> | undefined = editingRow
         ? {
+            operatorDbId: editingRow.operatorDbId ?? "",
             operatorName: editingRow.operatorName,
             operatorId: editingRow.operatorId,
-            groupName: "",
+            groupName: editingRow.groupName ?? "",
             reason: editingRow.reason ?? "",
-            amount: parseAmount(editingRow.amount),
+            advancedAmount: parseAmount(editingRow.amount),
+            paidAmount: "",
             issueDate: toInputDate(editingRow.date),
-            expiryDate: toInputDate(editingRow.expiryDate ?? ""),
-            interestRate: editingRow.interestRate ?? "21",
         }
         : undefined;
 
     const discountDefaultValues: Partial<DiscountFormValues> | undefined = editingRow
         ? {
+            operatorDbId: editingRow.operatorDbId ?? "",
             operatorName: editingRow.operatorName,
             operatorId: editingRow.operatorId,
-            groupName: "",
+            groupName: editingRow.groupName ?? "",
             reason: editingRow.reason ?? "",
             amount: parseAmount(editingRow.amount),
             issueDate: toInputDate(editingRow.date),
         }
         : undefined;
 
+    const tableData = activeTab === "reprimands"
+        ? reprimandRows
+        : activeTab === "debts"
+            ? debtRows
+            : activeTab === "cash-advances"
+                ? cashAdvanceRows
+                : activeTab === "discount"
+                    ? discountRows
+            : paginatedData;
+    const totalItems = activeTab === "reprimands"
+        ? (reprimandsData?.count ?? 0)
+        : activeTab === "debts"
+            ? (debtsData?.count ?? 0)
+            : activeTab === "cash-advances"
+                ? (cashAdvancesData?.count ?? 0)
+                : activeTab === "discount"
+                    ? (discountsData?.count ?? 0)
+            : filteredData.length;
+    const pageSize = activeTab === "reprimands"
+        ? DISCIPLINE_REPRIMAND_PAGE_SIZE
+        : activeTab === "debts"
+            ? PAGE_SIZE
+            : PAGE_SIZE;
+    const emptyText = activeTab === "reprimands"
+        ? isReprimandsLoading
+            ? "Loading reprimands..."
+            : isReprimandsError
+                ? "Failed to load reprimands."
+                : activeTabConfig.emptyText
+        : activeTab === "debts"
+            ? isDebtsLoading
+                ? "Loading debt records..."
+                : isDebtsError
+                    ? "Failed to load debt records."
+                    : activeTabConfig.emptyText
+            : activeTab === "cash-advances"
+                ? isCashAdvancesLoading
+                    ? "Loading cash advance records..."
+                    : isCashAdvancesError
+                        ? "Failed to load cash advance records."
+                        : activeTabConfig.emptyText
+                : activeTab === "discount"
+                    ? isDiscountsLoading
+                        ? "Loading discount records..."
+                        : isDiscountsError
+                            ? "Failed to load discount records."
+                            : activeTabConfig.emptyText
+            : activeTabConfig.emptyText;
+
     return (
         <>
             <AppTable
                 columns={columnsByTab[activeTab]}
-                data={paginatedData}
+                data={tableData}
                 rowKey={(row) => row.id}
-                emptyText={activeTabConfig.emptyText}
+                emptyText={emptyText}
                 tableAdditionalHeader={
                     <div className="flex items-center justify-between px-4 pt-3">
                         <div className="flex items-center gap-6">
@@ -635,8 +1116,8 @@ export function TransactionsDebtsTable() {
                 }
                 pagination={{
                     currentPage,
-                    totalItems: filteredData.length,
-                    pageSize: PAGE_SIZE,
+                    totalItems,
+                    pageSize,
                     onPageChange: setCurrentPage,
                     itemLabel: activeTabConfig.itemLabel,
                 }}
@@ -647,7 +1128,6 @@ export function TransactionsDebtsTable() {
                 onClose={handleCloseDebtModal}
                 onSubmit={handleSubmitDebt}
                 defaultValues={defaultValues}
-                operatorOptions={operatorOptions}
             />
 
             <CashAdvanceModal
@@ -655,7 +1135,6 @@ export function TransactionsDebtsTable() {
                 onClose={handleCloseCashAdvanceModal}
                 onSubmit={handleSubmitCashAdvance}
                 defaultValues={cashAdvanceDefaultValues}
-                operatorOptions={cashAdvanceOperatorOptions}
             />
 
             <DiscountModal
@@ -663,7 +1142,6 @@ export function TransactionsDebtsTable() {
                 onClose={handleCloseDiscountModal}
                 onSubmit={handleSubmitDiscount}
                 defaultValues={discountDefaultValues}
-                operatorOptions={discountOperatorOptions}
             />
         </>
     );

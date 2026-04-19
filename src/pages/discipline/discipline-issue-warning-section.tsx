@@ -1,8 +1,10 @@
 import React from "react";
 import { isAxiosError } from "axios";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { AppButton } from "../../components/button";
+import { AppInputField } from "../../components/form-field";
 import {
     SearchableDropdown,
     type SearchableDropdownOption,
@@ -11,6 +13,7 @@ import { AppText } from "../../components/text";
 import { useDebounce } from "../../lib/hooks/debounce";
 import {
     useIssueDisciplinaryWarning,
+    useRecentDisciplinaryReprimands,
     useSearchOperators,
 } from "../../lib/queries";
 import type { IssueDisciplinaryWarningValidationErrors } from "../../type";
@@ -21,18 +24,33 @@ type ReprimandHistoryRow = {
     deduction: string;
 };
 
-const REPRIMAND_HISTORY: ReprimandHistoryRow[] = [
-    {
-        operator: "Luna_",
-        month: "March 2026",
-        deduction: "-100,000 COP",
-    },
-    {
-        operator: "Aria 35",
-        month: "February 2026",
-        deduction: "-100,000 COP",
-    },
-];
+function formatMonth(dateOrMonth?: string): string {
+    if (!dateOrMonth) {
+        return "-";
+    }
+
+    const parsedDate = new Date(dateOrMonth);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return dateOrMonth;
+    }
+
+    return parsedDate.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+    });
+}
+
+function formatCopAmount(value: unknown): string {
+    const numeric = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(numeric)) {
+        return "-";
+    }
+
+    return `-${numeric.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    })} COP`;
+}
 
 type WarningFormErrors = {
     operatorId?: string;
@@ -54,6 +72,7 @@ function getFirstErrorMessage(value: unknown): string | undefined {
 }
 
 export function DisciplineIssueWarningSection() {
+    const navigate = useNavigate();
     const [selectedOperatorId, setSelectedOperatorId] = React.useState("");
     const [operatorSearch, setOperatorSearch] = React.useState("");
     const [actionDate, setActionDate] = React.useState(() => new Date().toISOString().slice(0, 10));
@@ -66,6 +85,11 @@ export function DisciplineIssueWarningSection() {
         mutateAsync: issueDisciplinaryWarning,
         isPending: isIssuingWarning,
     } = useIssueDisciplinaryWarning();
+    const {
+        data: recentReprimandsData,
+        isLoading: isRecentReprimandsLoading,
+        isError: isRecentReprimandsError,
+    } = useRecentDisciplinaryReprimands(2);
 
     const operatorOptions = React.useMemo<SearchableDropdownOption[]>(() => {
         return (operatorsData?.results ?? []).map((operator) => ({
@@ -81,6 +105,20 @@ export function DisciplineIssueWarningSection() {
             ],
         }));
     }, [operatorsData]);
+
+    const reprimandHistoryRows = React.useMemo<ReprimandHistoryRow[]>(() => {
+        return (recentReprimandsData?.results ?? []).map((item) => ({
+            operator: item.operator_name,
+            month: formatMonth(item.month ?? item.date ?? item.created_at),
+            deduction: formatCopAmount(
+                item.total_deduction ?? item.amount_cop ?? item.deduction_amount,
+            ),
+        }));
+    }, [recentReprimandsData]);
+
+    const handleViewAllFinancialDeductions = () => {
+        navigate("/transactions#reprimands");
+    };
 
     const handleSubmitWarning = async () => {
         const nextErrors: WarningFormErrors = {};
@@ -170,47 +208,34 @@ export function DisciplineIssueWarningSection() {
                             </div>
 
                             <div className="space-y-2">
-                                <AppText variant="description" className="text-xs font-bold uppercase tracking-[0.14em] text-text-secondary">
-                                    Date
-                                </AppText>
-                                <div className="relative">
-                                    <input
-                                        type="date"
-                                        value={actionDate}
-                                        onChange={(event) => {
-                                            setActionDate(event.target.value);
-                                            setFieldErrors((prev) => ({ ...prev, actionDate: undefined }));
-                                        }}
-                                        className="h-11 w-full rounded-lg border border-border bg-tab-bg px-4 text-base text-text outline-none focus:border-text-focus focus:bg-white"
-                                    />
-                                </div>
-                                {fieldErrors.actionDate && (
-                                    <AppText variant="description" className="text-xs text-red">
-                                        {fieldErrors.actionDate}
-                                    </AppText>
-                                )}
+                                <AppInputField
+                                    label="Date"
+                                    type="date"
+                                    value={actionDate}
+                                    onChange={(value) => {
+                                        setActionDate(value);
+                                        setFieldErrors((prev) => ({ ...prev, actionDate: undefined }));
+                                    }}
+                                    description={fieldErrors.actionDate}
+                                    descriptionClassName="text-red"
+                                />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <AppText variant="description" className="text-xs font-bold uppercase tracking-[0.14em] text-text-secondary">
-                                Reason for Warning
-                            </AppText>
-                            <textarea
-                                rows={3}
-                                placeholder="Describe the violation in detail..."
+                            <AppInputField
+                                label="Reason for Warning"
+                                type="text"
                                 value={reason}
-                                onChange={(event) => {
-                                    setReason(event.target.value);
+                                onChange={(value) => {
+                                    setReason(value);
                                     setFieldErrors((prev) => ({ ...prev, reason: undefined }));
                                 }}
-                                className="w-full resize-none rounded-lg border border-border bg-tab-bg px-4 py-3 text-base text-text-secondary outline-none placeholder:text-text-muted focus:border-text-focus focus:bg-white"
+                                placeholder="Describe the violation in detail..."
+                                description={fieldErrors.reason}
+                                descriptionClassName="text-red"
+                                inputClassName="h-11"
                             />
-                            {fieldErrors.reason && (
-                                <AppText variant="description" className="text-xs text-red">
-                                    {fieldErrors.reason}
-                                </AppText>
-                            )}
                         </div>
 
                         <AppButton
@@ -245,23 +270,38 @@ export function DisciplineIssueWarningSection() {
                         </div>
 
                         <div className="space-y-5">
-                            {REPRIMAND_HISTORY.map((entry) => (
-                                <div key={`${entry.operator}-${entry.month}`} className="grid grid-cols-3 gap-4">
-                                    <AppText variant="body" className="text-base font-semibold text-text">
-                                        {entry.operator}
-                                    </AppText>
-                                    <AppText variant="description" className="text-base text-text-secondary">
-                                        {entry.month}
-                                    </AppText>
-                                    <span  className="text-right text-base font-semibold text-red">
-                                        {entry.deduction}
-                                    </span>
-                                </div>
-                            ))}
+                            {isRecentReprimandsLoading ? (
+                                <AppText variant="description" className="text-sm text-text-muted">
+                                    Loading reprimands...
+                                </AppText>
+                            ) : isRecentReprimandsError ? (
+                                <AppText variant="description" className="text-sm text-red">
+                                    Failed to load reprimands.
+                                </AppText>
+                            ) : reprimandHistoryRows.length === 0 ? (
+                                <AppText variant="description" className="text-sm text-text-muted">
+                                    No reprimands found.
+                                </AppText>
+                            ) : (
+                                reprimandHistoryRows.map((entry) => (
+                                    <div key={`${entry.operator}-${entry.month}`} className="grid grid-cols-3 gap-4">
+                                        <AppText variant="body" className="text-base font-semibold text-text">
+                                            {entry.operator}
+                                        </AppText>
+                                        <AppText variant="description" className="text-base text-text-secondary">
+                                            {entry.month}
+                                        </AppText>
+                                        <span className="text-right text-base font-semibold text-red">
+                                            {entry.deduction}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
                         </div>
 
                         <button
                             type="button"
+                            onClick={handleViewAllFinancialDeductions}
                             className="ml-auto flex items-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-focus"
                         >
                             View All Financial Deductions

@@ -44,3 +44,28 @@ export type RevokeDisciplinaryWarningResponse = {
     detail?: string;
     [key: string]: unknown;
 };
+
+export type DisciplinaryReprimandItem = {
+    operator: number;
+    operator_id: string;
+    operator_name: string;
+    reprimand_count: number;
+    total_deduction: number | string;
+    latest_reprimand_date: string;
+    id?: number;
+    date?: string;
+    created_at?: string;
+    month?: string;
+    warning_count?: number;
+    warning_limit?: number;
+    amount_cop?: number | string;
+    deduction_amount?: number | string;
+    [key: string]: unknown;
+};
+
+export type DisciplinaryReprimandPaginatedResponse = {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: DisciplinaryReprimandItem[];
+};

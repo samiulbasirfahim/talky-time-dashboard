@@ -1,9 +1,11 @@
 import React from "react";
 import { Info } from "lucide-react";
+import { AppButton } from "../../components/button";
 import { AppInputField } from "../../components/form-field";
 import { FormModalShell } from "../../components/form-modal-shell";
 import { SegmentedTabBar } from "../../components/segmented-tab-bar";
 import { AppText } from "../../components/text";
+import type { ProfileOperatorSummary } from "../../type";
 
 export type BonusPercentage = "21%" | "25%";
 
@@ -20,6 +22,9 @@ interface ProfileFormModalProps {
     onClose: () => void;
     onSubmit: (values: ProfileFormValues) => void | Promise<void>;
     defaultValues?: Partial<ProfileFormValues>;
+    assignedOperator?: ProfileOperatorSummary | null;
+    onDeleteAssignedOperator?: () => void | Promise<void>;
+    isDeletingAssignedOperator?: boolean;
 }
 
 const EMPTY_FORM: ProfileFormValues = {
@@ -35,6 +40,9 @@ export function ProfileFormModal({
     onClose,
     onSubmit,
     defaultValues,
+    assignedOperator,
+    onDeleteAssignedOperator,
+    isDeletingAssignedOperator = false,
 }: ProfileFormModalProps) {
     const [formValues, setFormValues] = React.useState<ProfileFormValues>(EMPTY_FORM);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -69,6 +77,14 @@ export function ProfileFormModal({
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleDeleteAssignedOperator = async () => {
+        if (!onDeleteAssignedOperator || !assignedOperator) {
+            return;
+        }
+
+        await onDeleteAssignedOperator();
     };
 
     return (
@@ -125,6 +141,62 @@ export function ProfileFormModal({
                 />
             </div>
                 </div>
+
+            {isDetailsMode && (
+                <div className="space-y-2">
+                    <AppText variant="description" className="font-semibold text-text">
+                        Assigned Operator
+                    </AppText>
+
+                    {assignedOperator ? (
+                        <div className="overflow-hidden rounded-lg border border-border bg-white">
+                            <div className="grid grid-cols-[1.2fr_2fr_2fr_auto] gap-3 bg-bg-secondary px-4 py-2">
+                                <AppText variant="description" className="text-xs font-semibold uppercase text-text-muted">
+                                    Operation Order
+                                </AppText>
+                                <AppText variant="description" className="text-xs font-semibold uppercase text-text-muted">
+                                    Operator Name
+                                </AppText>
+                                <AppText variant="description" className="text-xs font-semibold uppercase text-text-muted">
+                                    Operator Id
+                                </AppText>
+                                <AppText variant="description" className="text-xs font-semibold uppercase text-text-muted text-right">
+                                    Action
+                                </AppText>
+                            </div>
+
+                            <div className="grid grid-cols-[1.2fr_2fr_2fr_auto] items-center gap-3 px-4 py-3">
+                                <AppText variant="body" className="font-semibold text-text">
+                                    1
+                                </AppText>
+                                <AppText variant="body" className="font-semibold text-text">
+                                    {assignedOperator.full_name}
+                                </AppText>
+                                <AppText variant="description" className="text-text-secondary">
+                                    {assignedOperator.operator_id}
+                                </AppText>
+                                <div className="justify-self-end">
+                                    <AppButton
+                                        type="button"
+                                        variant="danger"
+                                        size="sm"
+                                        className="min-w-24"
+                                        onClick={handleDeleteAssignedOperator}
+                                        isLoading={isDeletingAssignedOperator}
+                                        loadingLabel="Deleting..."
+                                    >
+                                        Delete
+                                    </AppButton>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <AppText variant="description" className="text-sm text-text-muted">
+                            No assigned operator.
+                        </AppText>
+                    )}
+                </div>
+            )}
 
 
             {hasSupervisor && (
