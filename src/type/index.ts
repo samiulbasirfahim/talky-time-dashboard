@@ -6,6 +6,7 @@ export * from './discount.query.type';
 export * from './discipline.query.type';
 export * from './group.query.type';
 export * from './operator.query.type';
+export * from './payout.query.type';
 export * from './profile.query.type';
 export * from './score-cutoff.query.type';
 export * from './settings.query.type';

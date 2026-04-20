@@ -53,7 +53,7 @@ export function Login() {
             </div>
             <div className="flex items-center justify-center bg-white shadow-lg ">
                 <div className="w-full max-w-md px-6 py-8 sm:px-8 flex flex-col items-center">
-                    <Logo hasBorder={false} logo="https://thumbs.dreamstime.com/b/vector-logo-colorful-design-41236752.jpg" subtitle="Multi-Operator" title="Logo Name" />
+                    <Logo hasBorder={false} logo="https://thumbs.dreamstime.com/b/vector-logo-colorful-design-41236752.jpg" subtitle="Talky Time" title="talkytime" />
 
                     <AppText variant="body" className="mt-2 text-center font-semibold text-text-secondary">
                         Login into your account

@@ -61,3 +61,9 @@ export type ProfileValidationErrors = {
     non_field_errors?: string[];
     [key: string]: string[] | string | undefined;
 };
+
+export type MassAssignProfilePayload = {
+    group_id: number;
+    shift: "DAY" | "NIGHT" | string;
+    target_date: string;
+}

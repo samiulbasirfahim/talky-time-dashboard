@@ -171,8 +171,8 @@ export function Sidebar() {
             <Logo
                 hasBorder={true}
                 logo="https://thumbs.dreamstime.com/b/vector-logo-colorful-design-41236752.jpg"
-                subtitle="Logo Name"
-                title="Multi-operator"
+                subtitle="talkytime"
+                title="Talky Time"
             />
 
             <div className="grow-0 flex flex-col overflow-y-auto custom-scrollbar pb-6">

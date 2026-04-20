@@ -51,7 +51,11 @@ function formatUsd(value: number): string {
     });
 }
 
-export function TotalGroup() {
+export function TotalGroup({
+    isAdminView = false,
+}: {
+    isAdminView?: boolean;
+}) {
     const { mutateAsync: createGroup } = useCreateGroup();
     const { mutateAsync: deleteGroup } = useDeleteGroup();
     const {
@@ -195,9 +199,12 @@ export function TotalGroup() {
             <div className="shadow-border border-border border shadow-xs rounded-md w-full space-y-4 p-4">
                 <div className="flex justify-between items-center">
                     <AppText variant="header">Total Group</AppText>
-                    <AppButton prefixIcon={Users} onClick={createGroupModal.openModal}>
-                        Create Group
-                    </AppButton>
+                    {
+                        isAdminView && (
+                            <AppButton prefixIcon={Users} onClick={createGroupModal.openModal}>
+                                Create Group
+                            </AppButton>)
+                    }
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
@@ -222,7 +229,10 @@ export function TotalGroup() {
                                 descriptionSecs={`${group.supervisors} Supervisors`}
                                 value={group.value}
                                 lightColor={group.lightColor}
-                                onDelete={() => setGroupIdToDelete(group.id)}
+                                onDelete={
+                                    !isAdminView ? undefined
+                                        : () => setGroupIdToDelete(group.id)
+                                }
                             />
                         ))
                     )}

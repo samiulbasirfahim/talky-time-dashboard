@@ -1,60 +1,55 @@
-import { useState } from "react";
-import { Download } from "lucide-react";
-import { AppButton } from "../../components/button";
+import { useMemo, useState } from "react";
 import { AppText } from "../../components/text";
 import {
     AppTable,
-    TableActions,
     TableGroupLabel,
     TableIdentity,
     type TableColumn,
 } from "../../components/table";
+import {
+    OPERATORS_PAGE_LIMIT,
+    usePaginatedOperators,
+} from "../../lib/queries";
+import type { OperatorResponse } from "../../type";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface BonusPerformanceRow {
-    id: string;
+    id: number;
+    operatorCode: string;
     name: string;
     group: string;
     groupColor: string;
-    currentBonus: string;
+    currentBonus: number;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
 const GROUP_COLORS: Record<string, string> = {
-    Medellin: "var(--color-purple)",
+    Medellin: "#7C3AED",
     Bogota: "#3b82f6",
-    Cali: "var(--color-green)",
+    Cali: "#059669",
 };
 
-const MOCK_DATA: BonusPerformanceRow[] = [
-    { id: "#0001", name: "Rasel Jr.", group: "Medellin", groupColor: GROUP_COLORS.Medellin, currentBonus: "COL$ 450.00" },
-    { id: "#0002", name: "Saruf Sr.", group: "Bogota", groupColor: GROUP_COLORS.Bogota, currentBonus: "COL$ 250.00" },
-    { id: "#0003", name: "Saruf Sr.", group: "Bogota", groupColor: GROUP_COLORS.Bogota, currentBonus: "COL$ 850.00" },
-    { id: "#0004", name: "Saruf Sr.", group: "Bogota", groupColor: GROUP_COLORS.Bogota, currentBonus: "COL$ 450.00" },
-    { id: "#0005", name: "Elena R.", group: "Medellin", groupColor: GROUP_COLORS.Medellin, currentBonus: "COL$ 320.00" },
-    { id: "#0006", name: "Marco B.", group: "Cali", groupColor: GROUP_COLORS.Cali, currentBonus: "COL$ 510.00" },
-    { id: "#0007", name: "Sofia J.", group: "Bogota", groupColor: GROUP_COLORS.Bogota, currentBonus: "COL$ 680.00" },
-    { id: "#0008", name: "Lucas V.", group: "Medellin", groupColor: GROUP_COLORS.Medellin, currentBonus: "COL$ 290.00" },
-    { id: "#0009", name: "Ana T.", group: "Cali", groupColor: GROUP_COLORS.Cali, currentBonus: "COL$ 420.00" },
-    { id: "#0010", name: "Jorge M.", group: "Bogota", groupColor: GROUP_COLORS.Bogota, currentBonus: "COL$ 560.00" },
-    { id: "#0011", name: "Diana C.", group: "Medellin", groupColor: GROUP_COLORS.Medellin, currentBonus: "COL$ 740.00" },
-    { id: "#0012", name: "Pablo S.", group: "Cali", groupColor: GROUP_COLORS.Cali, currentBonus: "COL$ 380.00" },
-];
+const getGroupColor = (groupName: string) => {
+    if (groupName.toLowerCase().includes("medellin")) {
+        return GROUP_COLORS.Medellin;
+    }
+    if (groupName.toLowerCase().includes("bogota")) {
+        return GROUP_COLORS.Bogota;
+    }
+    if (groupName.toLowerCase().includes("cali")) {
+        return GROUP_COLORS.Cali;
+    }
 
-const PAGE_SIZE = 4;
+    return "#94A3B8";
+};
 
 // ─── Column Builder ───────────────────────────────────────────────────────────
 
-const buildColumns = (
-    onEdit: (row: BonusPerformanceRow) => void,
-    onDelete: (id: string) => void,
-): TableColumn<BonusPerformanceRow>[] => [
+const columns: TableColumn<BonusPerformanceRow>[] = [
         {
             key: "operator",
             header: "Operator",
-            render: (row) => <TableIdentity name={row.name} sub={`ID: ${row.id}`} />,
+            render: (row) => <TableIdentity name={row.name} sub={`ID: ${row.operatorCode}`} />,
         },
         {
             key: "group",
@@ -68,19 +63,12 @@ const buildColumns = (
             header: "Current Bonus",
             render: (row) => (
                 <AppText variant="body" className="text-sm font-semibold">
-                    {row.currentBonus}
+                    {Number(row.currentBonus).toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                        minimumFractionDigits: 2,
+                    })}
                 </AppText>
-            ),
-        },
-        {
-            key: "actions",
-            header: "Actions",
-            align: "right",
-            render: (row) => (
-                <TableActions
-                    onEdit={() => onEdit(row)}
-                    onDelete={() => onDelete(row.id)}
-                />
             ),
         },
     ];
@@ -88,59 +76,48 @@ const buildColumns = (
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const BonusPerformanceTable = () => {
-    const [data, setData] = useState<BonusPerformanceRow[]>(MOCK_DATA);
     const [currentPage, setCurrentPage] = useState(1);
+    const {
+        data: paginatedData,
+        isPending,
+        isError,
+    } = usePaginatedOperators(currentPage);
 
-    const handleEdit = (row: BonusPerformanceRow) => {
-        console.log("edit", row);
-    };
+    const rows = useMemo<BonusPerformanceRow[]>(() => {
+        return (paginatedData?.results ?? []).map((operator: OperatorResponse) => ({
+            id: operator.id,
+            operatorCode: operator.operator_id,
+            name: operator.full_name || operator.operator_name,
+            group: operator.group_name,
+            groupColor: getGroupColor(operator.group_name),
+            currentBonus: Number(operator.total_bonus_usd ?? 0),
+        }));
+    }, [paginatedData]);
 
-    const handleDelete = (id: string) => {
-        setData((prev) => {
-            const updated = prev.filter((r) => r.id !== id);
-            const newTotalPages = Math.max(1, Math.ceil(updated.length / PAGE_SIZE));
-            if (currentPage > newTotalPages) setCurrentPage(newTotalPages);
-            return updated;
-        });
-    };
-
-    const handleExportCsv = () => {
-        console.log("Export CSV clicked");
-    };
-
-    const paginatedData = data.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE,
-    );
-
-    const columns = buildColumns(handleEdit, handleDelete);
+    const emptyText = isPending
+        ? "Loading bonus performance data..."
+        : isError
+            ? "Failed to load bonus performance data."
+            : "No bonus performance data found.";
 
     return (
         <div className="p-4">
             <AppTable
                 columns={columns}
-                data={paginatedData}
-                rowKey={(r) => r.id}
-                emptyText="No bonus data found."
+                data={rows}
+                rowKey={(r) => String(r.id)}
+                emptyText={emptyText}
                 tableAdditionalHeader={
-                    <div className="flex items-center justify-between px-6 py-5">
+                    <div className="px-6 py-5">
                         <AppText variant="smallHeader" className="text-base font-bold">
                             Operator Bonus Feed
                         </AppText>
-                        <AppButton
-                            variant="outline"
-                            size="sm"
-                            prefixIcon={Download}
-                            onClick={handleExportCsv}
-                        >
-                            Export CSV
-                        </AppButton>
                     </div>
                 }
                 pagination={{
                     currentPage,
-                    totalItems: data.length,
-                    pageSize: PAGE_SIZE,
+                    totalItems: paginatedData?.total_operator_count ?? paginatedData?.count ?? 0,
+                    pageSize: OPERATORS_PAGE_LIMIT,
                     onPageChange: setCurrentPage,
                     itemLabel: "operators",
                 }}

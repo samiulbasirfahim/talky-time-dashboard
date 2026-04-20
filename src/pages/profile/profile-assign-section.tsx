@@ -1,12 +1,38 @@
-import { Moon, Plus, Sun, UserRound, UsersRound } from "lucide-react";
+import { Moon, Sun, UserRound, UsersRound, X } from "lucide-react";
 import React from "react";
 import { AppButton } from "../../components/button";
 import { AppInputField } from "../../components/form-field";
+import {
+    SearchableDropdown,
+    type SearchableDropdownOption,
+} from "../../components/searchable-dropdown";
 import { SegmentedTabBar, type SegmentedTabOption } from "../../components/segmented-tab-bar";
 import { AppText } from "../../components/text";
+import { useDebounce } from "../../lib/hooks/debounce";
+import {
+    useAllGroups,
+    useMassAssignProfile,
+    usePaginatedProfiles,
+    useSearchOperators,
+} from "../../lib/queries";
+import toast from "react-hot-toast";
 
 type AssignMode = "single" | "mass";
 type ShiftType = "day" | "night";
+type ShiftApiValue = "DAY" | "NIGHT";
+
+type AssignFieldErrors = {
+    operatorId?: string;
+    groupId?: string;
+    profileIds?: string;
+    targetDate?: string;
+};
+
+const getDefaultTargetDate = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().slice(0, 10);
+};
 
 const ASSIGN_MODE_OPTIONS: SegmentedTabOption<AssignMode>[] = [
     {
@@ -37,9 +63,220 @@ const SHIFT_OPTIONS: SegmentedTabOption<ShiftType>[] = [
 export function ProfileAssignSection() {
     const [assignMode, setAssignMode] = React.useState<AssignMode>("single");
     const [shiftType, setShiftType] = React.useState<ShiftType>("night");
-    const [operatorName, setOperatorName] = React.useState("");
-    const [group, setGroup] = React.useState("Medellin");
-    const [profileName, setProfileName] = React.useState("");
+    const [selectedOperatorId, setSelectedOperatorId] = React.useState("");
+    const [selectedOperatorName, setSelectedOperatorName] = React.useState("");
+    const [operatorSearch, setOperatorSearch] = React.useState("");
+    const [selectedGroupId, setSelectedGroupId] = React.useState("");
+    const [selectedProfileIds, setSelectedProfileIds] = React.useState<string[]>([]);
+    const [targetDate, setTargetDate] = React.useState(getDefaultTargetDate);
+    const [profileDropdownKey, setProfileDropdownKey] = React.useState(0);
+    const [fieldErrors, setFieldErrors] = React.useState<AssignFieldErrors>({});
+
+
+    const {
+        mutateAsync: massAssignProfile,
+        isPending: isAssigningProfile,
+    } = useMassAssignProfile();
+
+    const debouncedOperatorSearch = useDebounce(operatorSearch, 500);
+
+    const { data: operatorsData, isPending: isOperatorsPending } = useSearchOperators(
+        debouncedOperatorSearch,
+    );
+    const { data: groupsData, isPending: isGroupsPending } = useAllGroups();
+    const { data: profilesData, isPending: isProfilesPending } = usePaginatedProfiles(1);
+
+    const operatorOptions = React.useMemo<SearchableDropdownOption[]>(() => {
+        return (operatorsData?.results ?? []).map((operator) => ({
+            value: String(operator.id),
+            label: operator.full_name || operator.operator_name || `Operator #${operator.id}`,
+            subtitle: `ID: ${operator.operator_id}`,
+            keywords: [
+                operator.operator_id,
+                operator.operator_name,
+                operator.full_name,
+                operator.group_name,
+                operator.shift_display,
+            ],
+        }));
+    }, [operatorsData]);
+
+    const groupOptions = React.useMemo<SearchableDropdownOption[]>(() => {
+        return (groupsData?.results ?? []).map((group) => ({
+            value: String(group.id),
+            label: group.name,
+            subtitle: `${group.operator_count} operators`,
+            keywords: [group.name],
+        }));
+    }, [groupsData]);
+
+    const profileOptions = React.useMemo<SearchableDropdownOption[]>(() => {
+        return (profilesData?.results ?? []).map((profile) => ({
+            value: String(profile.id),
+            label: profile.profile_name || profile.name,
+            subtitle: `ID: ${profile.profile_id}`,
+            keywords: [
+                profile.profile_name,
+                profile.name,
+                String(profile.profile_id),
+                profile.operator,
+            ],
+        }));
+    }, [profilesData]);
+
+    const selectedProfilesSet = React.useMemo(() => {
+        return new Set(selectedProfileIds);
+    }, [selectedProfileIds]);
+
+    const availableProfileOptions = React.useMemo(() => {
+        return profileOptions.filter((option) => !selectedProfilesSet.has(option.value));
+    }, [profileOptions, selectedProfilesSet]);
+
+    const profileLabelById = React.useMemo(() => {
+        return Object.fromEntries(
+            profileOptions.map((option) => [option.value, option.label]),
+        ) as Record<string, string>;
+    }, [profileOptions]);
+
+    const toApiShift = (value: ShiftType): ShiftApiValue => {
+        return value === "day" ? "DAY" : "NIGHT";
+    };
+
+    const getFormattedErrorMessage = (error: unknown) => {
+        const detail = (error as {
+            response?: {
+                data?: {
+                    detail?: string | string[];
+                };
+            };
+        })?.response?.data?.detail;
+
+        if (Array.isArray(detail)) {
+            const firstMessage = detail.find(
+                (item): item is string => typeof item === "string" && item.trim().length > 0,
+            );
+            if (firstMessage) {
+                return firstMessage;
+            }
+        }
+
+        if (typeof detail === "string") {
+            const trimmed = detail.trim();
+            const pythonListLike = trimmed.match(/^\[\s*['\"](.+?)['\"]\s*\]$/);
+
+            if (pythonListLike?.[1]) {
+                return pythonListLike[1];
+            }
+
+            if (trimmed.length > 0) {
+                return trimmed;
+            }
+        }
+
+        return "Failed to assign profile. Please try again.";
+    };
+
+    const handleOperatorChange = (operatorId: string) => {
+        setSelectedOperatorId(operatorId);
+        setFieldErrors((prev) => ({ ...prev, operatorId: undefined }));
+
+        const selected = operatorOptions.find((option) => option.value === operatorId);
+        setSelectedOperatorName(selected?.label ?? "");
+    };
+
+    const handleGroupChange = (groupId: string) => {
+        setSelectedGroupId(groupId);
+        setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
+    };
+
+    const handleAddProfile = (profileId: string) => {
+        if (!profileId) {
+            return;
+        }
+
+        setSelectedProfileIds((prev) => {
+            if (prev.includes(profileId)) {
+                return prev;
+            }
+
+            return [...prev, profileId];
+        });
+
+        setFieldErrors((prev) => ({ ...prev, profileIds: undefined }));
+        setProfileDropdownKey((prev) => prev + 1);
+    };
+
+    const handleRemoveProfile = (profileId: string) => {
+        setSelectedProfileIds((prev) => prev.filter((id) => id !== profileId));
+    };
+
+    const resetAssignForm = () => {
+        setSelectedOperatorId("");
+        setSelectedOperatorName("");
+        setSelectedGroupId("");
+        setSelectedProfileIds([]);
+        setTargetDate(getDefaultTargetDate());
+        setProfileDropdownKey((prev) => prev + 1);
+        setFieldErrors({});
+    };
+
+    const handleAssignProfile = async () => {
+        const shift = toApiShift(shiftType);
+
+        if (assignMode === "single") {
+            const nextErrors: AssignFieldErrors = {};
+
+            if (!selectedOperatorId) {
+                nextErrors.operatorId = "Please select an operator.";
+            }
+
+            if (selectedProfileIds.length === 0) {
+                nextErrors.profileIds = "Please select at least one profile.";
+            }
+
+            if (Object.keys(nextErrors).length > 0) {
+                setFieldErrors(nextErrors);
+                return;
+            }
+
+            console.log("[Single Assign]", {
+                shift,
+                operator_id: selectedOperatorId,
+                operator_name: selectedOperatorName,
+                profile_ids: selectedProfileIds,
+            });
+
+            return;
+        }
+
+        const nextErrors: AssignFieldErrors = {};
+
+        if (!targetDate) {
+            nextErrors.targetDate = "Please select a date.";
+        }
+
+        if (!selectedGroupId) {
+            nextErrors.groupId = "Please select a group.";
+        }
+
+        if (Object.keys(nextErrors).length > 0) {
+            setFieldErrors(nextErrors);
+            return;
+        }
+
+        try {
+            await massAssignProfile({
+                target_date: targetDate,
+                shift,
+                group_id: Number(selectedGroupId),
+            });
+
+            toast.success("Mass assign completed successfully.");
+            resetAssignForm();
+        } catch (err: unknown) {
+            toast.error(getFormattedErrorMessage(err));
+        }
+    };
 
     return (
         <section className="rounded-3xl border border-border bg-white p-6">
@@ -58,15 +295,23 @@ export function ProfileAssignSection() {
                     wrapperClassName="w-full"
                 />
 
-                <AppInputField
-                    id="operator-name"
-                    label="Operator name"
-                    type="text"
-                    placeholder="Enter Profile name"
-                    value={operatorName}
-                    onChange={setOperatorName}
-                    inputClassName="h-12 px-4"
-                />
+                {assignMode === "single" && (
+                    <SearchableDropdown
+                        label="Operator"
+                        value={selectedOperatorId}
+                        options={operatorOptions}
+                        onChange={handleOperatorChange}
+                        onSearchChange={setOperatorSearch}
+                        placeholder={
+                            isOperatorsPending ? "Searching operators..." : "Search operator id/name"
+                        }
+                        emptyText={isOperatorsPending ? "Searching..." : "No operators found."}
+                        description={fieldErrors.operatorId}
+                        descriptionClassName="text-red"
+                    />
+                )}
+
+
 
                 <div className="space-y-2">
                     <label htmlFor="shift-type" className="block text-base font-medium text-text">
@@ -82,35 +327,85 @@ export function ProfileAssignSection() {
                     </div>
                 </div>
 
-                <AppInputField
-                    id="group"
+{
+                    assignMode === "mass" && (
+                                        <AppInputField
+                    label="Target Date"
+                    type="date"
+                    value={targetDate}
+                    onChange={(value) => {
+                        setTargetDate(value);
+                        setFieldErrors((prev) => ({ ...prev, targetDate: undefined }));
+                    }}
+                    description={fieldErrors.targetDate}
+                    descriptionClassName="text-red"
+                />
+                    )
+}
+
+                <SearchableDropdown
                     label="Group"
-                    type="text"
-                    value={group}
-                    onChange={setGroup}
-                    inputClassName="h-12 px-4"
+                    value={selectedGroupId}
+                    options={groupOptions}
+                    onChange={handleGroupChange}
+                    placeholder={isGroupsPending ? "Loading groups..." : "Search group"}
+                    emptyText={isGroupsPending ? "Loading groups..." : "No groups found."}
+                    description={fieldErrors.groupId}
+                    descriptionClassName="text-red"
                 />
 
-                <AppInputField
-                    id="profile-name"
-                    label="Profile name"
-                    type="text"
-                    placeholder="Enter profile"
-                    value={profileName}
-                    onChange={setProfileName}
-                    inputClassName="h-12 px-4 pr-16"
-                    suffix={
-                        <button
-                            type="button"
-                            className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg bg-white/45 text-text-secondary hover:bg-white/75"
-                            aria-label="Add profile"
-                        >
-                            <Plus size={22} />
-                        </button>
-                    }
-                />
+                {assignMode === "single" && (
+                    <div className="space-y-2">
+                        <SearchableDropdown
+                            key={profileDropdownKey}
+                            label="Profile name"
+                            value=""
+                            options={availableProfileOptions}
+                            onChange={handleAddProfile}
+                            placeholder={
+                                isProfilesPending
+                                    ? "Loading profiles..."
+                                    : "Search profile name/id"
+                            }
+                            emptyText={isProfilesPending ? "Loading profiles..." : "No profiles found."}
+                            description={fieldErrors.profileIds}
+                            descriptionClassName="text-red"
+                        />
 
-                <AppButton type="button" variant="focus" fullWidth className="mt-1 h-12 rounded-xl text-sm font-semibold">
+                        {selectedProfileIds.length > 0 && (
+                            <div className="flex max-h-24 flex-wrap gap-2 overflow-y-auto rounded-lg border border-border bg-bg-secondary p-2">
+                                {selectedProfileIds.map((profileId) => (
+                                    <span
+                                        key={profileId}
+                                        className="inline-flex items-center gap-1 rounded-md border border-border bg-bg px-2 py-1 text-sm text-text-secondary"
+                                    >
+                                        {profileLabelById[profileId] ?? profileId}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveProfile(profileId)}
+                                            className="inline-flex h-4 w-4 items-center justify-center rounded text-text-muted hover:bg-bg-secondary"
+                                            aria-label={`Remove profile ${profileId}`}
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <AppButton
+                    type="button"
+                    variant="focus"
+                    fullWidth
+                    className="mt-1 h-12 rounded-xl text-sm font-semibold"
+
+                    onClick={handleAssignProfile}
+                    disabled={isAssigningProfile}
+                    loadingLabel={"Assigning"}
+                    isLoading={isAssigningProfile}
+                >
                     Assign Profile
                 </AppButton>
 

@@ -10,16 +10,19 @@ import toast from "react-hot-toast";
 import { AppButton } from "../../components/button";
 import { AppModal } from "../../components/modal";
 import { AppText } from "../../components/text";
-import { useSystemSettings, useUpdateSystemSettings } from "../../lib/queries";
+import { useMe, useSystemSettings, useUpdateSystemSettings } from "../../lib/queries";
 
-const PERIODS = [
-	"January 2026",
-	"February 2026",
-	"March 2026",
-	"April 2026",
-	"May 2026",
-	"June 2026",
-];
+type PayoutPeriod = {
+	year: number;
+	month: number;
+	label: string;
+};
+
+type PayoutSecondaryCardProps = {
+	periods: PayoutPeriod[];
+	selectedPeriodIndex: number;
+	onSelectedPeriodIndexChange: (nextIndex: number) => void;
+};
 
 const formatLastUpdated = (timestamp?: string) => {
 	if (!timestamp) {
@@ -41,8 +44,14 @@ const formatLastUpdated = (timestamp?: string) => {
 	});
 };
 
-export function PayoutSecondaryCard() {
-	const [selectedPeriodIndex, setSelectedPeriodIndex] = React.useState(2);
+export function PayoutSecondaryCard({
+	periods,
+	selectedPeriodIndex,
+	onSelectedPeriodIndexChange,
+}: PayoutSecondaryCardProps) {
+
+	const { data: me } = useMe();
+
 	const [draftExchangeRate, setDraftExchangeRate] = React.useState("");
 	const [isModalOpen, setIsModalOpen] = React.useState(false);
 	const {
@@ -57,10 +66,11 @@ export function PayoutSecondaryCard() {
 	const exchangeRate = settingsData?.exchange_rate_usd_to_cop ?? "0";
 	const lastUpdated = formatLastUpdated(settingsData?.exchange_rate_updated_at);
 
-	const currentPeriod = PERIODS[selectedPeriodIndex] ?? PERIODS[0];
+	const currentPeriod =
+		periods[selectedPeriodIndex]?.label ?? periods[periods.length - 1]?.label ?? "-";
 
 	const canGoPreviousPeriod = selectedPeriodIndex > 0;
-	const canGoNextPeriod = selectedPeriodIndex < PERIODS.length - 1;
+	const canGoNextPeriod = selectedPeriodIndex < periods.length - 1;
 
 	const handleOpenModal = () => {
 		setDraftExchangeRate(exchangeRate);
@@ -100,7 +110,7 @@ export function PayoutSecondaryCard() {
 						<div className="flex items-center justify-between gap-3">
 							<button
 								type="button"
-								onClick={() => setSelectedPeriodIndex((prev) => prev - 1)}
+								onClick={() => onSelectedPeriodIndexChange(selectedPeriodIndex - 1)}
 								disabled={!canGoPreviousPeriod}
 								aria-label="Select previous period"
 								className="inline-flex h-9 w-9 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
@@ -122,7 +132,7 @@ export function PayoutSecondaryCard() {
 
 							<button
 								type="button"
-								onClick={() => setSelectedPeriodIndex((prev) => prev + 1)}
+								onClick={() => onSelectedPeriodIndexChange(selectedPeriodIndex + 1)}
 								disabled={!canGoNextPeriod}
 								aria-label="Select next period"
 								className="inline-flex h-9 w-9 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
@@ -132,52 +142,56 @@ export function PayoutSecondaryCard() {
 						</div>
 					</div>
 
-					<div className="rounded-xl border border-border bg-bg p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] xl:col-span-3">
-						<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-							<div className="flex items-center gap-3">
-								<div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#F3B20026] text-[#F3B200]">
-									<CircleDollarSign size={26} />
-								</div>
+					{
+						me?.data.is_admin && (
+							<div className="rounded-xl border border-border bg-bg p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] xl:col-span-3">
+								<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+									<div className="flex items-center gap-3">
+										<div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#F3B20026] text-[#F3B200]">
+											<CircleDollarSign size={26} />
+										</div>
 
-								<div>
-									<AppText
-										variant="description"
-										className="text-xs font-semibold uppercase tracking-[0.12em]"
-									>
-										Exchange Rate (COP per USD)
-									</AppText>
-									<div className="mt-1 flex items-center gap-2 bg-bg-secondary px-2 py-1 rounded flex-row justify-between">
-										<AppText variant="smallHeader" className="text-[2rem] leading-none">
-											{isSettingsLoading ? "Loading..." : `$${Number(exchangeRate).toLocaleString("en-US")}`}
-										</AppText>
+										<div>
+											<AppText
+												variant="description"
+												className="text-xs font-semibold uppercase tracking-[0.12em]"
+											>
+												Exchange Rate (COP per USD)
+											</AppText>
+											<div className="mt-1 flex items-center gap-2 bg-bg-secondary px-2 py-1 rounded flex-row justify-between">
+												<AppText variant="smallHeader" className="text-[2rem] leading-none">
+													{isSettingsLoading ? "Loading..." : `$${Number(exchangeRate).toLocaleString("en-US")}`}
+												</AppText>
 
-										<AppButton
-											variant="ghost"
-											size="sm"
-											aria-label="Edit exchange rate"
-											onClick={handleOpenModal}
-											disabled={isSettingsLoading}
-											className="h-8 w-8 p-0"
+												<AppButton
+													variant="ghost"
+													size="sm"
+													aria-label="Edit exchange rate"
+													onClick={handleOpenModal}
+													disabled={isSettingsLoading}
+													className="h-8 w-8 p-0"
+												>
+													<SquarePen size={22} />
+												</AppButton>
+											</div>
+										</div>
+									</div>
+
+									<div className="border-border md:border-l md:pl-6">
+										<AppText
+											variant="description"
+											className="text-xs font-semibold uppercase tracking-[0.12em]"
 										>
-											<SquarePen size={22} />
-										</AppButton>
+											Last Updated
+										</AppText>
+										<AppText variant="body" className="mt-1 font-semibold">
+											{lastUpdated}
+										</AppText>
 									</div>
 								</div>
 							</div>
-
-							<div className="border-border md:border-l md:pl-6">
-								<AppText
-									variant="description"
-									className="text-xs font-semibold uppercase tracking-[0.12em]"
-								>
-									Last Updated
-								</AppText>
-								<AppText variant="body" className="mt-1 font-semibold">
-									{lastUpdated}
-								</AppText>
-							</div>
-						</div>
-					</div>
+						)
+					}
 				</div>
 			</section>
 

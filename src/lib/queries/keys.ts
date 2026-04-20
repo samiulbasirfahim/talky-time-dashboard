@@ -48,6 +48,14 @@ export const discountKeys = {
     details: (id: number | string) => [...discountKeys.all(), "details", id] as const,
 }
 
+export const payoutKeys = {
+    all: () => ["payouts"] as const,
+    breakdownRoot: (year: number, month: number) =>
+        [...payoutKeys.all(), "breakdown", year, month] as const,
+    breakdownPage: (year: number, month: number, page: number) =>
+        [...payoutKeys.breakdownRoot(year, month), page] as const,
+}
+
 export const csvKeys = {
     all: () => ["csv"] as const,
     latest: () => [...csvKeys.all(), "latest"] as const,

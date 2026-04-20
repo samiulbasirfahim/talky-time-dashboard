@@ -18,6 +18,7 @@ export * from './profile.query';
 export * from './debts.query';
 export * from './cash-advance.query';
 export * from './discount.query';
+export * from './payout.query';
 export * from './score-cutoff.query';
 export * from './dashboard.query';
 export * from './discipline.query';

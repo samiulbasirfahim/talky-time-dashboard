@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
     CreateProfilePayload,
     CreateProfileResponse,
+    MassAssignProfilePayload,
     ProfilePaginatedResponse,
     ProfileResponse,
     UpdateProfilePayload,
@@ -96,4 +97,21 @@ export function useDeleteProfile() {
             ]);
         },
     });
+}
+
+export function useMassAssignProfile() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (payload: MassAssignProfilePayload) => {
+            const res = await apiClient.post(`/operations/assignments/mass-assign/`, payload);
+            return res.data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: profileKeys.all() });
+            await queryClient.invalidateQueries({ queryKey: profileKeys.paginatedRoot() });
+            await queryClient.invalidateQueries({ queryKey: profileKeys.details("all") });
+        },
+    });
+
 }

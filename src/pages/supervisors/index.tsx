@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { HeaderSection } from "../../components/header-section";
 import { useAppModal } from "../../hooks/useAppModal";
-import { useCreateSupervisor, useDeleteSupervisor, useUpdateSupervisor } from "../../lib/queries";
+import { useCreateSupervisor, useDeleteSupervisor, useMe, useUpdateSupervisor } from "../../lib/queries";
 import type {
     CreateSupervisorPayload,
     SupervisorCreateValidationErrors,
@@ -49,6 +49,9 @@ export function Supervisors() {
     const { mutateAsync: createSupervisor } = useCreateSupervisor();
     const { mutateAsync: updateSupervisor } = useUpdateSupervisor();
     const { mutateAsync: deleteSupervisor } = useDeleteSupervisor();
+
+    const { data: me } = useMe();
+
     const [editingSupervisor, setEditingSupervisor] = useState<SupervisorResponse | null>(null);
 
     const isEditMode = Boolean(editingSupervisor);
@@ -225,20 +228,23 @@ export function Supervisors() {
             <HeaderSection
                 title="Supervisors"
                 description={`Orchestrate your operator teams and leadership hierarchy.`}
-                buttons={[
-                    {
-                        label: "Create Supervisor",
-                        icon: UserPlus,
-                        onClick: openCreateSupervisorModal,
-                    },
-                ]}
+                buttons={
+                    me?.data.is_supervisor ? []
+                        : [
+                            {
+                                label: "Create Supervisor",
+                                icon: UserPlus,
+                                onClick: openCreateSupervisorModal,
+                            },
+                        ]
+                }
             />
             <SuperVisorsCard />
             <SupervisorsTable
                 onEditSupervisor={handleEditSupervisor}
                 onDeleteSupervisor={handleDeleteSupervisor}
             />
-            <TotalGroup />
+            <TotalGroup isAdminView={!me?.data.is_supervisor}  />
 
             <CreateSupervisorModal
                 open={createSupervisorModal.isOpen}
