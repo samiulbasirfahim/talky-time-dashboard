@@ -6,14 +6,22 @@ import { AppButton } from "../../components/button";
 import { DeleteConfirmModal } from "../../components/delete-confirm-modal";
 import { HorizontalStatCardV2 } from "../../components/horizontal-stat-card-v2";
 import { useAppModal } from "../../hooks/useAppModal";
-import { useAllGroups, useCreateGroup, useDeleteGroup } from "../../lib/queries";
+import {
+    useAllGroups,
+    useCreateGroup,
+    useDeleteGroup,
+    useGroupDetails,
+    useUpdateGroup,
+} from "../../lib/queries";
 import type {
     GroupCreateValidationErrors,
     GroupCreationPayload,
+    GroupUpdatePayload,
 } from "../../type";
 import { AppText } from "../../components/text";
 import {
     CreateGroupModal,
+    type CreateGroupDefaultValues,
     type CreateGroupFormFieldErrors,
     type CreateGroupFormValues,
 } from "./create-group-modal";
@@ -23,6 +31,7 @@ interface GroupItem {
     title: string;
     operators: number;
     supervisors: number;
+    profiles: number;
     value: string;
     lightColor: boolean;
 }
@@ -58,6 +67,7 @@ export function TotalGroup({
 }) {
     const { mutateAsync: createGroup } = useCreateGroup();
     const { mutateAsync: deleteGroup } = useDeleteGroup();
+    const { mutateAsync: updateGroup } = useUpdateGroup();
     const {
         data: groupsData,
         isPending: isGroupsPending,
@@ -66,7 +76,16 @@ export function TotalGroup({
 
     const [groupIdToDelete, setGroupIdToDelete] = React.useState<string | null>(null);
     const [isDeletingGroup, setIsDeletingGroup] = React.useState(false);
+
+    // Edit state
+    const [groupIdToEdit, setGroupIdToEdit] = React.useState<number | null>(null);
+    const [editDefaultValues, setEditDefaultValues] = React.useState<CreateGroupDefaultValues | null>(null);
+
     const createGroupModal = useAppModal();
+    const editGroupModal = useAppModal();
+
+    // Fetch group details when an edit is triggered
+    const { data: groupDetailsData, isPending: isGroupDetailsPending } = useGroupDetails(groupIdToEdit);
 
     const groups = React.useMemo<GroupItem[]>(() => {
         return (groupsData?.results ?? []).map((group, index) => ({
@@ -74,6 +93,7 @@ export function TotalGroup({
             title: group.name,
             operators: group.operator_count,
             supervisors: group.supervisor_count,
+            profiles: group.profile_count,
             value: formatUsd(group.total_bonus),
             lightColor: index % 2 === 0,
         }));
@@ -121,6 +141,61 @@ export function TotalGroup({
         }
     };
 
+    // When group details load after clicking Edit, open the modal
+    React.useEffect(() => {
+        if (!groupIdToEdit || isGroupDetailsPending || !groupDetailsData) {
+            return;
+        }
+
+        const supervisors = groupDetailsData.supervisors ?? [];
+        const operators = groupDetailsData.operators ?? [];
+        const profiles = groupDetailsData.profiles ?? [];
+
+        const defaults: CreateGroupDefaultValues = {
+            groupName: groupDetailsData.name,
+            supervisorIds: supervisors.map((s) => String(s.id)),
+            operatorIds: operators.map((o) => String(o.id)),
+            profileIds: profiles.map((p) => String(p.id)),
+            supervisorLabels: Object.fromEntries(
+                supervisors.map((s) => [
+                    String(s.id),
+                    s.supervisor_name || s.name || s.supervisor_id,
+                ]),
+            ),
+            operatorLabels: Object.fromEntries(
+                operators.map((o) => [
+                    String(o.id),
+                    o.full_name || o.operator_name || o.operator_id,
+                ]),
+            ),
+            profileLabels: Object.fromEntries(
+                profiles.map((p) => [
+                    String(p.id),
+                    p.profile_name || String(p.profile_id),
+                ]),
+            ),
+        };
+
+        setEditDefaultValues(defaults);
+        editGroupModal.openModal();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [groupDetailsData, isGroupDetailsPending, groupIdToEdit]);
+
+    const handleEditClick = (groupId: string) => {
+        const numericId = Number(groupId);
+        if (!Number.isInteger(numericId) || numericId <= 0) return;
+
+        // Reset previous state so we trigger fresh fetch
+        setEditDefaultValues(null);
+        setGroupIdToEdit(numericId);
+    };
+
+    const handleCloseEditModal = () => {
+        editGroupModal.closeModal();
+        setGroupIdToEdit(null);
+        setEditDefaultValues(null);
+    };
+
     const handleCreateGroup = async (
         values: CreateGroupFormValues,
     ): Promise<CreateGroupFormFieldErrors | null> => {
@@ -155,14 +230,28 @@ export function TotalGroup({
             };
         }
 
+        const normalizedProfileIdsRaw = values.profileIds.map((id) => Number(id));
+        const hasInvalidProfileId = normalizedProfileIdsRaw.some(
+            (id) => !Number.isInteger(id) || id <= 0,
+        );
+        if (hasInvalidProfileId) {
+            return {
+                profileIds: "Profiles must contain valid primary key IDs.",
+            };
+        }
+
         const normalizedSupervisorIds = [...new Set(normalizedSupervisorIdsRaw)];
         const normalizedOperatorIds = [...new Set(normalizedOperatorIdsRaw)];
+        const normalizedProfileIds = [...new Set(normalizedProfileIdsRaw)];
 
         if (normalizedSupervisorIds.length > 0) {
             payload.supervisors = normalizedSupervisorIds;
         }
         if (normalizedOperatorIds.length > 0) {
             payload.operators = normalizedOperatorIds;
+        }
+        if (normalizedProfileIds.length > 0) {
+            payload.profiles = normalizedProfileIds;
         }
 
         try {
@@ -191,6 +280,50 @@ export function TotalGroup({
             return {
                 groupName: "Failed to create group. Please try again.",
             };
+        }
+    };
+
+    const handleUpdateGroup = async (
+        values: CreateGroupFormValues,
+    ): Promise<CreateGroupFormFieldErrors | null> => {
+        if (!groupIdToEdit) return null;
+
+        const trimmedName = values.groupName.trim();
+        if (!trimmedName) {
+            return { groupName: "Group name is required." };
+        }
+
+        const payload: GroupUpdatePayload = {
+            name: trimmedName,
+            supervisors: [...new Set(values.supervisorIds.map(Number))],
+            operators: [...new Set(values.operatorIds.map(Number))],
+            profiles: [...new Set(values.profileIds.map(Number))],
+        };
+
+        try {
+            await updateGroup({ id: groupIdToEdit, payload });
+            toast.success("Group updated successfully.");
+            return null;
+        } catch (error) {
+            if (isAxiosError<GroupCreateValidationErrors>(error)) {
+                const apiErrors = error.response?.data;
+                const mappedErrors: CreateGroupFormFieldErrors = {};
+
+                if (apiErrors && typeof apiErrors === "object") {
+                    mappedErrors.groupName =
+                        getFirstErrorMessage(apiErrors.name) ??
+                        getFirstErrorMessage(apiErrors.non_field_errors);
+                    mappedErrors.supervisorIds = getFirstErrorMessage(apiErrors.supervisors);
+                    mappedErrors.operatorIds = getFirstErrorMessage(apiErrors.operators);
+                }
+
+                if (Object.keys(mappedErrors).length > 0) {
+                    return mappedErrors;
+                }
+            }
+
+            toast.error("Failed to update group. Please try again.");
+            return { groupName: "Failed to update group. Please try again." };
         }
     };
 
@@ -225,10 +358,12 @@ export function TotalGroup({
                             <HorizontalStatCardV2
                                 key={group.id}
                                 title={group.title}
-                                description={`${group.operators} Operator`}
+                                description={`${group.operators} Operators • ${group.profiles} Profiles`}
                                 descriptionSecs={`${group.supervisors} Supervisors`}
                                 value={group.value}
                                 lightColor={group.lightColor}
+                                loadingEditBtn={isGroupDetailsPending && group.id === String(groupIdToEdit)}
+                                onEdit={() => handleEditClick(group.id)}
                                 onDelete={
                                     !isAdminView ? undefined
                                         : () => setGroupIdToDelete(group.id)
@@ -254,6 +389,13 @@ export function TotalGroup({
                 open={createGroupModal.isOpen}
                 onClose={createGroupModal.closeModal}
                 onSubmit={handleCreateGroup}
+            />
+
+            <CreateGroupModal
+                open={editGroupModal.isOpen}
+                onClose={handleCloseEditModal}
+                defaultValues={editDefaultValues}
+                onSubmit={handleUpdateGroup}
             />
         </div>
     );

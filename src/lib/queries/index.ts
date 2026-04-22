@@ -9,6 +9,7 @@ const queryClient = new QueryClient({
 
 
 export { queryClient };
+export * from './admin.query';
 export * from './auth.query';
 export * from './group.query';
 export * from './supervisor.query';

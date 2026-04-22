@@ -1,12 +1,14 @@
 import { CircleMinus, TriangleAlert } from "lucide-react"
 import { useState } from "react"
 import { ProfileTrendChart, type ProfileTrendTimeframe } from "../../components/profile-trend-chart"
+import { useDashboardEarnings } from "../../lib/queries"
 import { SegmentedTabBar } from "../../components/segmented-tab-bar"
 import { AppText } from "../../components/text"
 import { CHART_TABS } from "./report-info-data"
 
 export function ReportInfoLeftSection() {
     const [selectedTab, setSelectedTab] = useState<ProfileTrendTimeframe>("weekly")
+    const { data: earningsData } = useDashboardEarnings()
 
     return (
         <div className="space-y-4">
@@ -62,7 +64,13 @@ export function ReportInfoLeftSection() {
             <div className="border-border border rounded-2xl shadow-xs p-8 w-full">
                 <div className="flex flex-wrap items-center justify-between gap-3 w-full">
                     <AppText variant="smallHeader" className="font-semibold text-text col-span-2 py-4">
-                        Weekly Bonus Distribution
+                        {
+                            selectedTab === "weekly"
+                                ? "Weekly Bonus Distribution"
+                                :
+                                "Monthly Bonus Distribution"
+
+                        }
                     </AppText>
                     <SegmentedTabBar
                         value={selectedTab}
@@ -71,7 +79,7 @@ export function ReportInfoLeftSection() {
                     />
                 </div>
                 <div className="mt-6 h-92.5 w-full">
-                    <ProfileTrendChart timeframe={selectedTab} className="h-full w-full" />
+                    <ProfileTrendChart timeframe={selectedTab} className="h-full w-full" earningsData={earningsData} />
                 </div>
             </div>
         </div>

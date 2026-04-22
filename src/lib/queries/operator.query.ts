@@ -81,12 +81,17 @@ export function useDeleteOperator() {
     });
 }
 
-export function useSearchOperators(query: string) {
+export function useSearchOperators(query: string, withoutGroup = false) {
     return useQuery({
-        queryKey: operatorKeys.search(query),
+        queryKey: operatorKeys.search(query, withoutGroup),
         queryFn: async (): Promise<OperatorPaginatedResponse> => {
+            const params = new URLSearchParams();
+            params.set("search", query);
+            if (withoutGroup) {
+                params.set("without_group", "true");
+            }
             const response = await apiClient.get<OperatorPaginatedResponse>(
-                `/operations/operators/?search=${encodeURIComponent(query)}`,
+                `/operations/operators/?${params.toString()}`,
             );
             return response.data;
         },

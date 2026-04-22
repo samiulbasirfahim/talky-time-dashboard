@@ -1,6 +1,7 @@
-import { Trash2 } from "lucide-react";
+import { Loader2, PenSquare, Trash2 } from "lucide-react";
 import { AppButton } from "./button";
 import { AppText } from "./text";
+import { motion } from "motion/react";
 
 type HorizontalStatCardV2Props = {
     title: string;
@@ -9,6 +10,8 @@ type HorizontalStatCardV2Props = {
     value: string | number;
     lightColor: boolean;
     onDelete?: () => void;
+    onEdit?: () => void;
+    loadingEditBtn: boolean;
 };
 
 export function HorizontalStatCardV2(props: HorizontalStatCardV2Props) {
@@ -25,6 +28,7 @@ export function HorizontalStatCardV2(props: HorizontalStatCardV2Props) {
                     <AppText variant="smallHeader">{props.title}</AppText>
                     <AppText
                         variant="smallHeader"
+                        className="ml-auto"
                         style={{
                             color: props.lightColor
                                 ? "var(--color-text-secondary)"
@@ -33,19 +37,54 @@ export function HorizontalStatCardV2(props: HorizontalStatCardV2Props) {
                     >
                         {props.value}
                     </AppText>
-                    {props.onDelete && (
-                        <AppButton
-                            variant="ghost"
-                            onClick={props.onDelete}
-                            aria-label={`Delete ${props.title}`}
-                        >
-                            <Trash2 className="text-bg-danger" />
-                        </AppButton>
-                    )}
+
+
                 </div>
                 <AppText variant="description">
                     {props.description} • {props.descriptionSecs}
                 </AppText>
+            </div>
+            <div className="flex flex-col">
+                {props.onDelete && (
+                    <AppButton
+                        variant="ghost"
+                        onClick={props.onDelete}
+                        aria-label={`Delete ${props.title}`}
+                    >
+                        <Trash2 className="text-bg-danger" />
+                    </AppButton>
+                )}
+                <div className="flex items-center justify-center w-full h-10">
+                    {props.onEdit && (
+
+                        <button
+                            onClick={props.onEdit}
+                            aria-label={`Edit ${props.title}`}
+                            disabled={props.loadingEditBtn}
+                        >
+                            {
+                                props.loadingEditBtn ?
+                                    (
+                                        <motion.div
+                                            animate={{
+                                                rotate: 360,
+                                            }}
+                                            transition={{
+                                                duration: 1,
+                                                repeat: Infinity,
+                                                ease: "linear",
+                                            }}
+                                        >
+                                            <Loader2 />
+                                        </motion.div>
+                                    ) : (
+                                        <PenSquare className="text-text-focus" />
+                                    )
+                            }
+                        </button>
+                    )}
+
+                </div>
             </div>
         </div>
     );

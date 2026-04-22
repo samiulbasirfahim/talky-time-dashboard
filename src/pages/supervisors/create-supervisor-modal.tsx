@@ -2,6 +2,7 @@ import React from "react";
 import { Info, Moon, Sun } from "lucide-react";
 import { AppText } from "../../components/text";
 import { AppInputField } from "../../components/form-field";
+import { AppPasswordField } from "../../components/password-input-field";
 import { SegmentedTabBar } from "../../components/segmented-tab-bar";
 import { FormModalShell } from "../../components/form-modal-shell";
 import {
@@ -71,10 +72,10 @@ export function CreateSupervisorModal({
             label: group.name,
             subtitle: `Operators: ${group.operator_count} | Supervisors: ${group.supervisor_count}`,
             keywords: [
-                `Total: ${group.operators_summary.total}`,
-                `Day: ${group.operators_summary.day_shift}`,
-                `Night: ${group.operators_summary.night_shift}`,
-                ...group.supervisors.map(
+                `Total: ${group.operators_summary?.total ?? 0}`,
+                `Day: ${group.operators_summary?.day_shift ?? 0}`,
+                `Night: ${group.operators_summary?.night_shift ?? 0}`,
+                ...(group.supervisors ?? []).map(
                     (supervisor) => supervisor.supervisor_name || supervisor.name,
                 ),
             ],
@@ -210,18 +211,19 @@ export function CreateSupervisorModal({
                     descriptionClassName="text-red-500"
                 />
 
-                <AppInputField
+                <AppPasswordField
                     label={mode === "edit" ? "Set Password (Optional)" : "Set Password"}
                     value={formValues.password}
                     onChange={(value) => {
                         setFormValues((prev) => ({ ...prev, password: value }));
                         setFieldErrors((prev) => ({ ...prev, password: undefined }));
                     }}
-                    type="password"
                     autoComplete="new-password"
                     placeholder="Set a password"
+                    inputClassName="h-10"
                     description={fieldErrors.password}
                     descriptionClassName="text-red-500"
+                    toggleAriaLabel="Toggle supervisor password visibility"
                 />
             </div>
 

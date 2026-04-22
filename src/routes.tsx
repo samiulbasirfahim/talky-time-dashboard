@@ -17,7 +17,11 @@ import {
     Payouts,
 } from "./pages";
 import { Login } from "./pages/login/login";
+import { ResetPasswordEmail } from "./pages/reset-password/email";
+import { ResetPasswordOtp } from "./pages/reset-password/otp";
+import { SetNewPassword } from "./pages/reset-password/set-new-password";
 import { ProtectedRoute, PublicRoute } from "./layout/protected.layout";
+import { ManagementPage } from "./pages/management/page";
 
 export const routes = createBrowserRouter([
     {
@@ -25,6 +29,30 @@ export const routes = createBrowserRouter([
         element: (
             <PublicRoute redirectPath="/">
                 <Login />
+            </PublicRoute>
+        ),
+    },
+    {
+        path: "/reset-password/email",
+        element: (
+            <PublicRoute redirectPath="/">
+                <ResetPasswordEmail />
+            </PublicRoute>
+        ),
+    },
+    {
+        path: "/reset-password/otp",
+        element: (
+            <PublicRoute redirectPath="/">
+                <ResetPasswordOtp />
+            </PublicRoute>
+        ),
+    },
+    {
+        path: "/reset-password/set-new-password",
+        element: (
+            <PublicRoute redirectPath="/">
+                <SetNewPassword />
             </PublicRoute>
         ),
     },
@@ -85,9 +113,15 @@ export const routes = createBrowserRouter([
             },
 
             {
+                path: "management",
+                Component: ManagementPage,
+            }
+
+        ],
+    },
+
+            {
                 path: "*",
                 Component: NotFound,
             },
-        ],
-    },
 ]);

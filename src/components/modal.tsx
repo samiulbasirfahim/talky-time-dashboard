@@ -52,7 +52,7 @@ export const AppModal = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.3 }}
                     className={`fixed inset-0 z-50 flex items-center justify-center bg-text/30 backdrop-blur-sm ${overlayClassName}`}
                     onClick={() => {
                         if (closeOnOverlayClick) onClose();

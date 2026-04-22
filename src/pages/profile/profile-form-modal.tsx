@@ -1,6 +1,6 @@
 import React from "react";
-import { Info } from "lucide-react";
-import { AppButton } from "../../components/button";
+import { Info, Loader2, Trash2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { AppInputField } from "../../components/form-field";
 import { FormModalShell } from "../../components/form-modal-shell";
 import { SegmentedTabBar } from "../../components/segmented-tab-bar";
@@ -113,34 +113,34 @@ export function ProfileFormModal({
                 placeholder="Enter Profile name"
             />
 
-            
-                <div className="grid grid-cols-2 gap-4">
-                    <AppInputField
-                        label="Profile Id"
-                        value={formValues.profileId}
-                        onChange={(value) =>
-                            setFormValues((prev) => ({ ...prev, profileId: value }))
-                        }
-                        placeholder="Enter Profile Id"
-                    />
-                                
 
-            <div className="space-y-2">
-                <AppText variant="description" className="font-semibold text-text">
-                    Bonus Percentage
-                </AppText>
-                <SegmentedTabBar
-                    value={formValues.bonusPercentage}
-                    options={[
-                        { value: "21%", label: "21%" },
-                        { value: "25%", label: "25%" },
-                    ]}
+            <div className="grid grid-cols-2 gap-4">
+                <AppInputField
+                    label="Profile Id"
+                    value={formValues.profileId}
                     onChange={(value) =>
-                        setFormValues((prev) => ({ ...prev, bonusPercentage: value }))
+                        setFormValues((prev) => ({ ...prev, profileId: value }))
                     }
+                    placeholder="Enter Profile Id"
                 />
-            </div>
+
+
+                <div className="space-y-2">
+                    <AppText variant="description" className="font-semibold text-text">
+                        Bonus Percentage
+                    </AppText>
+                    <SegmentedTabBar
+                        value={formValues.bonusPercentage}
+                        options={[
+                            { value: "21%", label: "21%" },
+                            { value: "25%", label: "25%" },
+                        ]}
+                        onChange={(value) =>
+                            setFormValues((prev) => ({ ...prev, bonusPercentage: value }))
+                        }
+                    />
                 </div>
+            </div>
 
             {isDetailsMode && (
                 <div className="space-y-2">
@@ -151,9 +151,7 @@ export function ProfileFormModal({
                     {assignedOperator ? (
                         <div className="overflow-hidden rounded-lg border border-border bg-white">
                             <div className="grid grid-cols-[1.2fr_2fr_2fr_auto] gap-3 bg-bg-secondary px-4 py-2">
-                                <AppText variant="description" className="text-xs font-semibold uppercase text-text-muted">
-                                    Operation Order
-                                </AppText>
+
                                 <AppText variant="description" className="text-xs font-semibold uppercase text-text-muted">
                                     Operator Name
                                 </AppText>
@@ -167,26 +165,36 @@ export function ProfileFormModal({
 
                             <div className="grid grid-cols-[1.2fr_2fr_2fr_auto] items-center gap-3 px-4 py-3">
                                 <AppText variant="body" className="font-semibold text-text">
-                                    1
-                                </AppText>
-                                <AppText variant="body" className="font-semibold text-text">
                                     {assignedOperator.full_name}
                                 </AppText>
                                 <AppText variant="description" className="text-text-secondary">
                                     {assignedOperator.operator_id}
                                 </AppText>
                                 <div className="justify-self-end">
-                                    <AppButton
+                                    <button type="button" onClick={handleDeleteAssignedOperator} disabled={isDeletingAssignedOperator} className="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-bg-secondary disabled:cursor-not-allowed disabled:opacity-50">
+                                        {
+                                            !isDeletingAssignedOperator ? (
+                                                                                            <Trash2 className="text-bg-danger" 
+                                            
+                                                
+                                            />
+                                            ) : <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                                                <Loader2 className="text-text-focus" />
+                                            </motion.div>
+                                        }
+                                    </button>
+                                    {/* <AppButton
                                         type="button"
-                                        variant="danger"
+                                        variant="ghost"
                                         size="sm"
                                         className="min-w-24"
                                         onClick={handleDeleteAssignedOperator}
                                         isLoading={isDeletingAssignedOperator}
                                         loadingLabel="Deleting..."
+                                        prefixIcon={Trash}
                                     >
-                                        Delete
-                                    </AppButton>
+                                        
+                                    </AppButton> */}
                                 </div>
                             </div>
                         </div>

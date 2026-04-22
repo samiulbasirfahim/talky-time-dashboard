@@ -2,20 +2,17 @@ import { Download, FileText } from "lucide-react";
 import { AppButton } from "../../components/button";
 import {
     AppTable,
-    TableBadge,
     type PaginationProps,
     type TableColumn,
 } from "../../components/table";
 import { AppText } from "../../components/text";
 
-export type ReportHistoryStatus = "cleared" | "pending";
 
 export interface ReportHistoryRow {
-    transactionId: string;
+    operatorID: string;
     operator: string;
     date: string;
     amount: string;
-    status: ReportHistoryStatus;
 }
 
 type ReportHistoryTableProps = {
@@ -27,8 +24,8 @@ type ReportHistoryTableProps = {
 
 const REPORT_HISTORY_COLUMNS: TableColumn<ReportHistoryRow>[] = [
     {
-        key: "transactionId",
-        header: "Transaction ID",
+        key: "operatorID",
+        header: "Operator ID",
         className: "text-sm text-text-secondary",
     },
     {
@@ -50,18 +47,7 @@ const REPORT_HISTORY_COLUMNS: TableColumn<ReportHistoryRow>[] = [
                 {row.amount}
             </AppText>
         ),
-    },
-    {
-        key: "status",
-        header: "Status",
-        align: "right",
-        render: (row) => (
-            <TableBadge
-                label={row.status.toUpperCase()}
-                variant={row.status === "cleared" ? "success" : "warning"}
-            />
-        ),
-    },
+    }
 ];
 
 export function ReportHistoryTable({
@@ -74,7 +60,7 @@ export function ReportHistoryTable({
         <AppTable
             columns={REPORT_HISTORY_COLUMNS}
             data={data}
-            rowKey={(row) => row.transactionId}
+            rowKey={(row) => row.operatorID}
             emptyText="No financial history found."
             pagination={pagination}
             tableAdditionalHeader={

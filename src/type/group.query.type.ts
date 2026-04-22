@@ -2,6 +2,14 @@ export type GroupCreationPayload = {
     name: string;
     supervisors?: number[];
     operators?: number[];
+    profiles?: number[];
+};
+
+export type GroupUpdatePayload = {
+    name?: string;
+    supervisors?: number[];
+    operators?: number[];
+    profiles?: number[];
 };
 
 export type GroupCreateResponse = {
@@ -38,6 +46,41 @@ export type GroupOperatorsSummary = {
     night_shift: number;
 };
 
+export type GroupDetailOperator = {
+    id: number;
+    operator_id: string;
+    full_name: string;
+    operator_name: string;
+    shift: "DAY" | "NIGHT" | string;
+    shift_display: string;
+    is_active: boolean;
+};
+
+export type GroupDetailProfile = {
+    id: number;
+    profile_id: number;
+    profile_name: string;
+    group: number;
+    bonus_percentage: number;
+    bonus_percentage_display: string;
+    is_active: boolean;
+    operator: string | null;
+    monthly_earning: number;
+    current_operator: {
+        id: number;
+        operator_id: string;
+        full_name: string;
+        group_id: number;
+        group_name: string;
+        shift: string;
+        shift_display: string;
+        assigned_at: string;
+    } | null;
+    monthly_bonus_total: number;
+    latest_cumulative_bonus: number;
+    group_name: string;
+};
+
 export type GroupResult = {
     id: number;
     name: string;
@@ -46,8 +89,14 @@ export type GroupResult = {
     total_bonus: number;
     operator_count: number;
     supervisor_count: number;
-    supervisors: GroupSupervisorSummary[];
+    profile_count: number;
+    supervisors?: GroupSupervisorSummary[];
     operators_summary: GroupOperatorsSummary;
+};
+
+export type GroupDetailResponse = GroupResult & {
+    operators: GroupDetailOperator[];
+    profiles: GroupDetailProfile[];
 };
 
 export type GroupSearchResponse = {

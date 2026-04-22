@@ -7,6 +7,7 @@ import {
     Scale,
     Settings,
     Upload,
+    UserRoundCog,
     UsersRound,
 } from "lucide-react";
 import styles from "../layout.module.css";
@@ -30,6 +31,16 @@ const BUTTONS_GROUP_ADMIN: ButtonGroupProps[] = [
                 label: "Dashboard",
                 route: "/",
                 icon: LayoutDashboard,
+            },
+        ],
+    },
+    {
+        label: "Administration",
+        buttons: [
+            {
+                label: "Management",
+                route: "/management",
+                icon: UserRoundCog,
             },
         ],
     },
@@ -191,7 +202,7 @@ export function Sidebar() {
                     <div className="w-10 h-10 rounded-full bg-text-focus" />
                     <div>
                         <AppText variant="body">
-                            {user?.username || user?.email || "User"}
+                            {user?.username || user?.email || "ADMIN"}
                         </AppText>
                         <AppText variant="description">
                             {user?.role || "Unknown Role"}

@@ -48,6 +48,7 @@ export type UpdateProfilePayload = Partial<{
     name: string;
     profile_id: number | string;
     bonus_percentage: number;
+    remove_operator: boolean;
 }>;
 
 export type UpdateProfileResponse = ProfileResponse;
@@ -67,3 +68,33 @@ export type MassAssignProfilePayload = {
     shift: "DAY" | "NIGHT" | string;
     target_date: string;
 }
+
+export type SingleAssignProfilePayload = {
+    operator_id: number;
+    profile_id: number[];
+};
+
+export type LatestReassignmentItem = {
+    id: number;
+    operator: number;
+    operator_id_value: string;
+    operator_name: string;
+    operator_shift: "DAY" | "NIGHT" | string;
+    operator_shift_display: string;
+    group_id: number;
+    group_name: string;
+    profile: number;
+    profile_id_value: number;
+    profile_name: string;
+    profile_bonus_percentage: number;
+    start_at: string;
+    end_at: string | null;
+    assigned_by: number | null;
+    is_active: boolean;
+    created_at: string;
+};
+
+export type LatestReassignmentsResponse = {
+    count: number;
+    results: LatestReassignmentItem[];
+};

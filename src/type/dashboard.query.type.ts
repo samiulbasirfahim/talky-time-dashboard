@@ -24,3 +24,23 @@ export type DashboardEarningsResponse = {
     weekly_bonus_series: DashboardBonusSeriesPoint[];
     weekly_total_bonus: number;
 };
+
+export type ReportsLeaderboardPeriod = "weekly" | "monthly" | string;
+
+export type ReportsLeaderboardItem = {
+    operator_db_id: number;
+    operator_id: string;
+    operator_name: string;
+    group_id: number;
+    group_name: string;
+    shift: "DAY" | "NIGHT" | string;
+    total_bonus: number;
+    rank: number;
+};
+
+export type ReportsLeaderboardResponse = {
+    period: ReportsLeaderboardPeriod;
+    start_date: string;
+    end_date: string;
+    top_operators: ReportsLeaderboardItem[];
+};

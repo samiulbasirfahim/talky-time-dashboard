@@ -65,10 +65,10 @@ export function OperatorFormModal({
             label: group.name,
             subtitle: `Operators: ${group.operator_count} | Supervisors: ${group.supervisor_count}`,
             keywords: [
-                `Total: ${group.operators_summary.total}`,
-                `Day: ${group.operators_summary.day_shift}`,
-                `Night: ${group.operators_summary.night_shift}`,
-                ...group.supervisors.map(
+                `Total: ${group.operators_summary?.total ?? 0}`,
+                `Day: ${group.operators_summary?.day_shift ?? 0}`,
+                `Night: ${group.operators_summary?.night_shift ?? 0}`,
+                ...(group.supervisors ?? []).map(
                     (supervisor) => supervisor.supervisor_name || supervisor.name,
                 ),
             ],

@@ -24,14 +24,16 @@ import {
 } from "../../components/table";
 import {
     useCreateProfile,
-    useDeleteOperator,
     PROFILES_PAGE_LIMIT,
     useDeleteProfile,
+    useLatestReassignments,
     usePaginatedProfiles,
     useProfileDetails,
     useUpdateProfile,
+    useMe,
 } from "../../lib/queries";
 import type {
+    LatestReassignmentItem,
     ProfileResponse,
     ProfileValidationErrors,
     UpdateProfilePayload,
@@ -48,31 +50,10 @@ type ProfileRow = {
     monEarning: string;
 };
 
-type LastReassignment = {
-    profileName: string;
-    profileId: string;
-    assignedTo: string;
-    time: string;
-};
-
-const LAST_REASSIGNMENTS: LastReassignment[] = [
-    {
-        profileName: "Maya_Gold",
-        profileId: "prf4",
-        assignedTo: "Akash.65",
-        time: "11:03am",
-    },
-    {
-        profileName: "Diamond_Elite",
-        profileId: "prf9",
-        assignedTo: "Julian.m",
-        time: "10:45am",
-    },
-];
-
 const buildProfileColumns = (
     onEdit: (row: ProfileRow) => void,
     onDelete: (row: ProfileRow) => Promise<void>,
+    isAdminView: boolean,
 ): TableColumn<ProfileRow>[] => [
         {
             key: "profileId",
@@ -107,11 +88,10 @@ const buildProfileColumns = (
                     />
                     <AppText
                         variant="description"
-                        className={`text-sm ${
-                            row.isAssigned
+                        className={`text-sm ${row.isAssigned
                                 ? "font-medium text-text-secondary"
                                 : "italic text-text-muted"
-                        }`}
+                            }`}
                     >
                         {row.operator}
                     </AppText>
@@ -128,17 +108,21 @@ const buildProfileColumns = (
                 </AppText>
             ),
         },
-        {
-            key: "action",
-            header: "Action",
-            align: "right",
-            render: (row) => (
-                <TableActions
-                    onEdit={() => onEdit(row)}
-                    onDelete={() => onDelete(row)}
-                />
-            ),
-        },
+        ...(isAdminView
+            ? [
+                {
+                    key: "action",
+                    header: "Action",
+                    align: "right",
+                    render: (row) => (
+                        <TableActions
+                            onEdit={() => onEdit(row)}
+                            onDelete={() => onDelete(row)}
+                        />
+                    ),
+                } as TableColumn<ProfileRow>,
+            ]
+            : [])
     ];
 
 interface ProfileLeftSectionProps {
@@ -150,6 +134,7 @@ export function ProfileLeftSection({
     isCreateProfileModalOpen,
     onCloseCreateProfileModal,
 }: ProfileLeftSectionProps) {
+    const {data: userData} = useMe();
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedTrendTab, setSelectedTrendTab] = useState<ProfileTrendTimeframe>("weekly");
     const [profiles, setProfiles] = useState<ProfileRow[]>([]);
@@ -158,13 +143,18 @@ export function ProfileLeftSection({
         isPending: isProfilesPending,
         isError: isProfilesError,
     } = usePaginatedProfiles(currentPage);
+    const {
+        data: latestReassignmentsData,
+        isPending: isLatestReassignmentsPending,
+        isError: isLatestReassignmentsError,
+    } = useLatestReassignments(5);
     const { mutateAsync: createProfile } = useCreateProfile();
     const { mutateAsync: updateProfile } = useUpdateProfile();
-    const { mutateAsync: deleteProfile } = useDeleteProfile();
     const {
-        mutateAsync: deleteOperator,
-        isPending: isDeletingAssignedOperator,
-    } = useDeleteOperator();
+        mutateAsync: removeAssignedOperatorFromProfile,
+        isPending: isRemovingAssignedOperator,
+    } = useUpdateProfile();
+    const { mutateAsync: deleteProfile } = useDeleteProfile();
 
     const mappedProfiles = useMemo<ProfileRow[]>(() => {
         return (profileData?.results ?? []).map((profile: ProfileResponse) => {
@@ -247,15 +237,20 @@ export function ProfileLeftSection({
     };
 
     const handleDeleteAssignedOperator = async () => {
-        const assignedOperatorId = editingProfileDetails?.current_operator?.id;
+        const profileId = editingProfile?.id ?? editingProfileDetails?.id;
 
-        if (!assignedOperatorId) {
-            toast.error("No assigned operator found for this profile.");
+        if (!profileId) {
+            toast.error("No profile selected.");
             return;
         }
 
         try {
-            await deleteOperator(assignedOperatorId);
+            await removeAssignedOperatorFromProfile({
+                id: profileId,
+                payload: {
+                    remove_operator: true,
+                },
+            });
 
             setProfiles((prev) =>
                 prev.map((profile) => {
@@ -272,9 +267,20 @@ export function ProfileLeftSection({
             );
 
             await refetchEditingProfileDetails();
-            toast.success("Assigned operator deleted successfully.");
-        } catch {
-            toast.error("Failed to delete assigned operator. Please try again.");
+            toast.success("Assigned operator removed successfully.");
+        } catch (error) {
+            if (isAxiosError<ProfileValidationErrors>(error)) {
+                const apiMessage =
+                    getFirstErrorMessage(error.response?.data?.detail) ??
+                    getFirstErrorMessage(error.response?.data?.non_field_errors);
+
+                if (apiMessage) {
+                    toast.error(apiMessage);
+                    return;
+                }
+            }
+
+            toast.error("Failed to remove assigned operator. Please try again.");
         }
     };
 
@@ -438,7 +444,7 @@ export function ProfileLeftSection({
         }
         : undefined;
 
-    const profileColumns = buildProfileColumns(handleEdit, handleDelete);
+    const profileColumns = buildProfileColumns(handleEdit, handleDelete, userData?.data.is_admin ?? false);
     const reassignmentProfileOptions = useMemo(() => {
         return profiles.map((profile) => ({
             value: String(profile.id),
@@ -447,6 +453,23 @@ export function ProfileLeftSection({
             keywords: [profile.name, profile.profileId, profile.operator],
         }));
     }, [profiles]);
+
+    const formatReassignmentTime = (item: LatestReassignmentItem): string => {
+        const sourceDate = item.end_at || item.created_at;
+        const date = new Date(sourceDate);
+
+        if (Number.isNaN(date.getTime())) {
+            return sourceDate;
+        }
+
+        return date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        }).toLowerCase();
+    };
+
+    const latestReassignments = latestReassignmentsData?.results ?? [];
 
     return (
         <div className="space-y-4">
@@ -515,30 +538,44 @@ export function ProfileLeftSection({
                 </div>
 
                 <div className="space-y-8">
-                    {LAST_REASSIGNMENTS.map((entry) => (
-                        <div key={entry.profileId} className="flex items-start justify-between gap-4">
-                            <div>
-                                <AppText variant="description" className="font-semibold text-text">
-                                    {entry.profileName}
-                                </AppText>
-                                <AppText variant="description" className="mt-1 text-text-secondary">
-                                    ID: {entry.profileId}
-                                </AppText>
-                            </div>
-
-                            <div className="text-right">
-                                <div className="flex items-center justify-end gap-1 text-green">
-                                    <ArrowRight size={18} strokeWidth={2.2} />
-                                    <AppText variant="description" className="font-semibold text-green">
-                                        {entry.assignedTo}
+                    {isLatestReassignmentsPending ? (
+                        <AppText variant="description" className="text-text-muted">
+                            Loading reassignments...
+                        </AppText>
+                    ) : isLatestReassignmentsError ? (
+                        <AppText variant="description" className="text-red">
+                            Failed to load latest reassignments.
+                        </AppText>
+                    ) : latestReassignments.length === 0 ? (
+                        <AppText variant="description" className="text-text-muted">
+                            No recent reassignments found.
+                        </AppText>
+                    ) : (
+                        latestReassignments.map((entry) => (
+                            <div key={entry.id} className="flex items-start justify-between gap-4">
+                                <div>
+                                    <AppText variant="description" className="font-semibold text-text">
+                                        {entry.profile_name}
+                                    </AppText>
+                                    <AppText variant="description" className="mt-1 text-text-secondary">
+                                        ID: {entry.profile_id_value}
                                     </AppText>
                                 </div>
-                                <AppText variant="description" className="mt-1 text-[#8A9CB3]">
-                                    {entry.time}
-                                </AppText>
+
+                                <div className="text-right">
+                                    <div className="flex items-center justify-end gap-1 text-green">
+                                        <ArrowRight size={18} strokeWidth={2.2} />
+                                        <AppText variant="description" className="font-semibold text-green">
+                                            {entry.operator_name}
+                                        </AppText>
+                                    </div>
+                                    <AppText variant="description" className="mt-1 text-[#8A9CB3]">
+                                        {formatReassignmentTime(entry)}
+                                    </AppText>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </section>
 
@@ -549,7 +586,7 @@ export function ProfileLeftSection({
                 defaultValues={modalDefaultValues}
                 assignedOperator={editingProfileDetails?.current_operator ?? null}
                 onDeleteAssignedOperator={handleDeleteAssignedOperator}
-                isDeletingAssignedOperator={isDeletingAssignedOperator}
+                isDeletingAssignedOperator={isRemovingAssignedOperator}
             />
 
             <ProfileReassignmentModal

@@ -29,38 +29,8 @@ export function SettingsPayoutConfiguration({
                 </AppText>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <AppInputField
-                    label="Default Commission Rate"
-                    description="Standard commission rate for all operators"
-                    type="number"
-                    value={defaultCommissionRate}
-                    onChange={setDefaultCommissionRate}
-                    inputClassName="pr-8"
-                    suffix={
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base font-semibold text-text-muted">
-                            %
-                        </span>
-                    }
-                />
-
-                <AppInputField
-                    label="High Performance Rate"
-                    description="Commission rate for top performers"
-                    type="number"
-                    value={highPerformanceRate}
-                    onChange={setHighPerformanceRate}
-                    inputClassName="pr-8"
-                    suffix={
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base font-semibold text-text-muted">
-                            %
-                        </span>
-                    }
-                />
-            </div>
-
             <AppInputField
-                label="Qualification Threshold"
+                label="25% Qualification Threshold"
                 description="Minimum bonuses required to qualify for high performance rate"
                 type="number"
                 value={qualificationThreshold}

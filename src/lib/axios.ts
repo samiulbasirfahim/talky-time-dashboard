@@ -2,6 +2,7 @@ import axios, {
     type AxiosRequestConfig,
     type InternalAxiosRequestConfig
 } from "axios";
+
 import { useAuthStore } from "./store/auth.store";
 
 if (!import.meta.env.VITE_BASE_URL) {
@@ -93,9 +94,11 @@ apiClient.interceptors.response.use(
         const alreadyRetried = originalRequest._retry;
         const isProtected = !originalRequest.unprotected;
 
+
         if (!is401 || alreadyRetried || !isProtected) {
             return Promise.reject(error);
         }
+        
 
         if (isRefreshing) {
             return new Promise((resolve, reject) => {

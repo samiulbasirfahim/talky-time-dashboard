@@ -3,7 +3,9 @@ import { groupKeys } from "./keys";
 import type {
     GroupCreationPayload,
     GroupCreateResponse,
+    GroupDetailResponse,
     GroupSearchResponse,
+    GroupUpdatePayload,
 } from "../../type/group.query.type";
 import { apiClient } from "../axios";
 
@@ -70,6 +72,47 @@ export function useAllGroupsWithLimit(limit: number) {
                 `/operations/operator-groups/?limit=${limit}`,
             );
             return response.data;
+        },
+    });
+}
+
+
+export const useGroupDetails = (id: number | string | null) => {
+    return useQuery({
+        queryKey: groupKeys.details(id ?? "none"),
+        queryFn: async (): Promise<GroupDetailResponse> => {
+            const response = await apiClient.get<GroupDetailResponse>(`/operations/operator-groups/${id}/`);
+            if (response.status === 404) {
+                throw new Error("Group not found");
+            }
+            return response.data;
+        },
+        enabled: id !== null,
+    });
+};
+
+export function useUpdateGroup() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            id,
+            payload,
+        }: {
+            id: number;
+            payload: GroupUpdatePayload;
+        }): Promise<GroupDetailResponse> => {
+            const response = await apiClient.patch<GroupDetailResponse>(
+                `/operations/operator-groups/${id}/`,
+                payload,
+            );
+            return response.data;
+        },
+        onSuccess: async (_, variables) => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: groupKeys.all() }),
+                queryClient.invalidateQueries({ queryKey: groupKeys.details(variables.id) }),
+            ]);
         },
     });
 }

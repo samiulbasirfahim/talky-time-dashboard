@@ -7,35 +7,55 @@ import {
     type SearchableDropdownOption,
 } from "../../components/searchable-dropdown";
 import { useDebounce } from "../../lib/hooks/debounce";
-import { useSearchOperators, useSearchSupervisors } from "../../lib/queries";
+import {
+    useSearchOperators,
+    useSearchSupervisors,
+    useSearchProfilesForGroup,
+} from "../../lib/queries";
 import { AppText } from "../../components/text";
 
 export interface CreateGroupFormValues {
     groupName: string;
     supervisorIds: string[];
     operatorIds: string[];
+    profileIds: string[];
 }
 
 export type CreateGroupFormFieldErrors = Partial<
-    Record<"groupName" | "supervisorIds" | "operatorIds", string>
+    Record<"groupName" | "supervisorIds" | "operatorIds" | "profileIds", string>
 >;
+
+/** Pre-seeded label maps so chips render correctly when editing */
+export interface CreateGroupDefaultValues {
+    groupName: string;
+    supervisorIds: string[];
+    operatorIds: string[];
+    profileIds: string[];
+    /** Display labels keyed by id, used to show chips before search results load */
+    supervisorLabels?: Record<string, string>;
+    operatorLabels?: Record<string, string>;
+    profileLabels?: Record<string, string>;
+}
 
 interface CreateGroupModalProps {
     open: boolean;
     onClose: () => void;
+    defaultValues?: CreateGroupDefaultValues | null;
     onSubmit?: (
         values: CreateGroupFormValues,
     ) => Promise<CreateGroupFormFieldErrors | null> | CreateGroupFormFieldErrors | null;
 }
 
-
 const EMPTY_FORM: CreateGroupFormValues = {
     groupName: "",
     supervisorIds: [],
     operatorIds: [],
+    profileIds: [],
 };
 
-export function CreateGroupModal({ open, onClose, onSubmit }: CreateGroupModalProps) {
+export function CreateGroupModal({ open, onClose, onSubmit, defaultValues }: CreateGroupModalProps) {
+    const isEditMode = Boolean(defaultValues);
+
     const [formValues, setFormValues] = React.useState<CreateGroupFormValues>(EMPTY_FORM);
     const [fieldErrors, setFieldErrors] = React.useState<CreateGroupFormFieldErrors>({});
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -44,21 +64,37 @@ export function CreateGroupModal({ open, onClose, onSubmit }: CreateGroupModalPr
     const debouncedSupervisorSearch = useDebounce(supervisorSearch, 500);
     const [operatorSearch, setOperatorSearch] = React.useState("");
     const debouncedOperatorSearch = useDebounce(operatorSearch, 500);
+    const [profileSearch, setProfileSearch] = React.useState("");
+    const debouncedProfileSearch = useDebounce(profileSearch, 500);
 
     const [supervisorSearchKey, setSupervisorSearchKey] = React.useState(0);
     const [operatorSearchKey, setOperatorSearchKey] = React.useState(0);
+    const [profileSearchKey, setProfileSearchKey] = React.useState(0);
+
+    // Seed labels from defaultValues so chips render immediately when modal opens
+    const [supervisorLabelOverrides, setSupervisorLabelOverrides] = React.useState<Record<string, string>>({});
+    const [operatorLabelOverrides, setOperatorLabelOverrides] = React.useState<Record<string, string>>({});
+    const [profileLabelOverrides, setProfileLabelOverrides] = React.useState<Record<string, string>>({});
 
     const {
         data: supervisorsData,
         isPending: isSupervisorsPending,
-    } = useSearchSupervisors(debouncedSupervisorSearch);
+    } = useSearchSupervisors(debouncedSupervisorSearch, false);
     const {
         data: operatorsData,
         isPending: isOperatorsPending,
-    } = useSearchOperators(debouncedOperatorSearch);
+    } = useSearchOperators(debouncedOperatorSearch, false);
+    const {
+        data: profilesData,
+        isPending: isProfilesPending,
+    } = useSearchProfilesForGroup({
+        query: debouncedProfileSearch,
+        withoutGroup: isEditMode ? false : true,
+    });
 
     const allSupervisorResults = supervisorsData?.results ?? [];
     const allOperatorResults = operatorsData?.results ?? [];
+    const allProfileResults = profilesData?.results ?? [];
 
     const supervisorOptions = React.useMemo<SearchableDropdownOption[]>(() => {
         const selectedSet = new Set(formValues.supervisorIds);
@@ -86,37 +122,81 @@ export function CreateGroupModal({ open, onClose, onSubmit }: CreateGroupModalPr
             }));
     }, [allOperatorResults, formValues.operatorIds]);
 
+    const profileOptions = React.useMemo<SearchableDropdownOption[]>(() => {
+        const selectedSet = new Set(formValues.profileIds);
+
+        return allProfileResults
+            .filter((profile) => !selectedSet.has(String(profile.id)))
+            .map((profile) => ({
+                value: String(profile.id),
+                label: profile.profile_name || `Profile #${profile.id}`,
+                subtitle: `ID: ${profile.profile_id}`,
+                keywords: [profile.operator ?? ""],
+            }));
+    }, [allProfileResults, formValues.profileIds]);
+
+    // Merge API results into label maps
     const supervisorLabelById = React.useMemo(() => {
-        return Object.fromEntries(
+        const fromResults = Object.fromEntries(
             allSupervisorResults.map((supervisor) => [
                 String(supervisor.id),
                 supervisor.supervisor_name || supervisor.name || supervisor.supervisor_id || `ID: ${supervisor.id}`,
             ]),
         ) as Record<string, string>;
-    }, [allSupervisorResults]);
+        return { ...supervisorLabelOverrides, ...fromResults };
+    }, [allSupervisorResults, supervisorLabelOverrides]);
 
     const operatorLabelById = React.useMemo(() => {
-        return Object.fromEntries(
+        const fromResults = Object.fromEntries(
             allOperatorResults.map((operator) => [
                 String(operator.id),
                 operator.full_name || operator.operator_name || operator.operator_id || `ID: ${operator.id}`,
             ]),
         ) as Record<string, string>;
-    }, [allOperatorResults]);
+        return { ...operatorLabelOverrides, ...fromResults };
+    }, [allOperatorResults, operatorLabelOverrides]);
+
+    const profileLabelById = React.useMemo(() => {
+        const fromResults = Object.fromEntries(
+            allProfileResults.map((profile) => [
+                String(profile.id),
+                profile.profile_name || `Profile #${profile.id}`,
+            ]),
+        ) as Record<string, string>;
+        return { ...profileLabelOverrides, ...fromResults };
+    }, [allProfileResults, profileLabelOverrides]);
 
     React.useEffect(() => {
         if (!open) {
             return;
         }
 
-        setFormValues(EMPTY_FORM);
+        if (defaultValues) {
+            setFormValues({
+                groupName: defaultValues.groupName,
+                supervisorIds: defaultValues.supervisorIds,
+                operatorIds: defaultValues.operatorIds,
+                profileIds: defaultValues.profileIds,
+            });
+            setSupervisorLabelOverrides(defaultValues.supervisorLabels ?? {});
+            setOperatorLabelOverrides(defaultValues.operatorLabels ?? {});
+            setProfileLabelOverrides(defaultValues.profileLabels ?? {});
+        } else {
+            setFormValues(EMPTY_FORM);
+            setSupervisorLabelOverrides({});
+            setOperatorLabelOverrides({});
+            setProfileLabelOverrides({});
+        }
+
         setFieldErrors({});
         setIsSubmitting(false);
         setSupervisorSearch("");
         setOperatorSearch("");
+        setProfileSearch("");
         setSupervisorSearchKey(0);
         setOperatorSearchKey(0);
-    }, [open]);
+        setProfileSearchKey(0);
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleAddSupervisor = (supervisorId: string) => {
         setFormValues((prev) => {
@@ -148,6 +228,21 @@ export function CreateGroupModal({ open, onClose, onSubmit }: CreateGroupModalPr
         setOperatorSearchKey((prev) => prev + 1);
     };
 
+    const handleAddProfile = (profileId: string) => {
+        setFormValues((prev) => {
+            if (prev.profileIds.includes(profileId)) {
+                return prev;
+            }
+
+            return {
+                ...prev,
+                profileIds: [...prev.profileIds, profileId],
+            };
+        });
+        setFieldErrors((prev) => ({ ...prev, profileIds: undefined }));
+        setProfileSearchKey((prev) => prev + 1);
+    };
+
     const handleRemoveSupervisor = (supervisorId: string) => {
         setFormValues((prev) => ({
             ...prev,
@@ -162,6 +257,14 @@ export function CreateGroupModal({ open, onClose, onSubmit }: CreateGroupModalPr
             operatorIds: prev.operatorIds.filter((id) => id !== operatorId),
         }));
         setFieldErrors((prev) => ({ ...prev, operatorIds: undefined }));
+    };
+
+    const handleRemoveProfile = (profileId: string) => {
+        setFormValues((prev) => ({
+            ...prev,
+            profileIds: prev.profileIds.filter((id) => id !== profileId),
+        }));
+        setFieldErrors((prev) => ({ ...prev, profileIds: undefined }));
     };
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -193,17 +296,23 @@ export function CreateGroupModal({ open, onClose, onSubmit }: CreateGroupModalPr
         onClose();
     };
 
-    const submitLabel = isSubmitting ? "Creating..." : "Create Group";
+    const submitLabel = isSubmitting
+        ? isEditMode ? "Saving..." : "Creating..."
+        : isEditMode ? "Save Changes" : "Create Group";
 
     return (
         <FormModalShell
             open={open}
             onClose={onClose}
             onSubmit={handleSubmit}
-            title="Create Group"
-            description="Onboard a Supervisor into the Architect ecosystem."
+            title={isEditMode ? "Edit Group" : "Create Group"}
+            description={
+                isEditMode
+                    ? "Update the group details, members, and profiles."
+                    : "Onboard a Supervisor into the Architect ecosystem."
+            }
             submitLabel={submitLabel}
-            ariaLabel="Create group"
+            ariaLabel={isEditMode ? "Edit group" : "Create group"}
             contentClassName="max-w-4xl rounded-[22px] p-0"
             submitButtonDisabled={isSubmitting}
             submitButtonLoading={isSubmitting}
@@ -292,13 +401,51 @@ export function CreateGroupModal({ open, onClose, onSubmit }: CreateGroupModalPr
                 )}
             </div>
 
-            <div className="flex items-start gap-3 rounded-lg border border-border bg-bg-secondary px-4 py-3">
-                <Info size={24} className="mt-0.5 text-text-focus" />
-                <AppText variant="description" className="text-base leading-7 text-text-secondary">
-                    New operators will receive an automated invitation to set their initial
-                    password and access the <span className="text-text-focus">Talkytime Dashboard</span>.
-                </AppText>
+            <div className="space-y-2 w-full">
+                <SearchableDropdown
+                    key={profileSearchKey}
+                    label="Add Profile"
+                    value=""
+                    options={profileOptions}
+                    onChange={handleAddProfile}
+                    onSearchChange={setProfileSearch}
+                    placeholder="Search profile name or ID"
+                    emptyText={isProfilesPending ? "Searching..." : "No profiles found."}
+                    description={fieldErrors.profileIds}
+                    descriptionClassName="text-red-500"
+                />
+
+                {formValues.profileIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-bg-secondary p-2 max-h-16 overflow-y-auto">
+                        {formValues.profileIds.map((profileId) => (
+                            <span
+                                key={profileId}
+                                className="inline-flex items-center gap-1 rounded-md border border-border bg-bg px-2 py-1 text-sm text-text-secondary"
+                            >
+                                {profileLabelById[profileId] ?? `ID: ${profileId}`}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveProfile(profileId)}
+                                    className="inline-flex h-4 w-4 items-center justify-center rounded text-text-muted hover:bg-bg-secondary"
+                                    aria-label={`Remove profile ${profileId}`}
+                                >
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
+
+            {!isEditMode && (
+                <div className="flex items-start gap-3 rounded-lg border border-border bg-bg-secondary px-4 py-3">
+                    <Info size={24} className="mt-0.5 text-text-focus" />
+                    <AppText variant="description" className="text-base leading-7 text-text-secondary">
+                        New operators will receive an automated invitation to set their initial
+                        password and access the <span className="text-text-focus">Talkytime Dashboard</span>.
+                    </AppText>
+                </div>
+            )}
         </FormModalShell>
     );
 }

@@ -2,15 +2,22 @@ export const authKeys = {
     me: () => ["auth", "me"] as const,
 }
 
+export const adminKeys = {
+    all: () => ["admins"] as const,
+    paginatedRoot: () => [...adminKeys.all(), "paginated"] as const,
+    paginated: (page: number) => [...adminKeys.paginatedRoot(), page] as const,
+}
+
 export const groupKeys = {
     all: () => ["groups"] as const,
     list: (limit: number) => [...groupKeys.all(), "list", limit] as const,
     search: (query: string) => [...groupKeys.all(), "search", query] as const,
+    details: (id: number | string) => [...groupKeys.all(), "details", id] as const,
 }
 
 export const supervisorKeys = {
     all: () => ["supervisors"] as const,
-    search: (query: string) => [...supervisorKeys.all(), "search", query] as const,
+    search: (query: string, withoutGroup: boolean) => [...supervisorKeys.all(), "search", query, withoutGroup] as const,
     details: (id: string | number) => [...supervisorKeys.all(), "details", id] as const,
     paginatedRoot: () => [...supervisorKeys.all(), "paginated"] as const,
     paginated: (page: number) => [...supervisorKeys.paginatedRoot(), page] as const,
@@ -18,7 +25,7 @@ export const supervisorKeys = {
 
 export const operatorKeys = {
     all: () => ["operators"] as const,
-    search: (query: string) => [...operatorKeys.all(), "search", query] as const,
+    search: (query: string, withoutGroup: boolean) => [...operatorKeys.all(), "search", query, withoutGroup] as const,
     details: (id: string | number) => [...operatorKeys.all(), "details", id] as const,
     paginatedRoot: () => [...operatorKeys.all(), "paginated"] as const,
     paginated: (page: number) => [...operatorKeys.paginatedRoot(), page] as const,
@@ -28,7 +35,12 @@ export const profileKeys = {
     all: () => ["profiles"] as const,
     details: (id: string | number) => [...profileKeys.all(), "details", id] as const,
     paginatedRoot: () => [...profileKeys.all(), "paginated"] as const,
-    paginated: (page: number) => [...profileKeys.paginatedRoot(), page] as const,
+    paginated: (page: number, groupId?: number | string) =>
+        [...profileKeys.paginatedRoot(), page, groupId ?? "all-groups"] as const,
+    search: (query: string, groupId?: number | string, withoutOperatorOnSearch = false) =>
+        [...profileKeys.all(), "search", query, groupId ?? "all-groups", withoutOperatorOnSearch] as const,
+    latestReassignments: (limit: number) =>
+        [...profileKeys.all(), "latest-reassignments", limit] as const,
 }
 
 export const debtsKeys = {
@@ -70,6 +82,8 @@ export const scoreCutoffKeys = {
 export const dashboardKeys = {
     all: () => ["dashboard"] as const,
     earnings: () => [...dashboardKeys.all(), "earnings"] as const,
+    leaderboard: (period: string, year: number, month: number, limit: number) =>
+        [...dashboardKeys.all(), "leaderboard", period, year, month, limit] as const,
 }
 
 export const disciplineKeys = {

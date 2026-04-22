@@ -1,12 +1,50 @@
 import { AppButton } from "../../components/button"
 import { AppText } from "../../components/text"
+import { useReportsLeaderboard } from "../../lib/queries"
 import {
-    GROUP_CHIP_CLASS,
     MONTHLY_GROUP_COMPARISON,
-    TOP_OPERATORS,
+    GROUP_CHIP_CLASS,
 } from "./report-info-data"
 
 export function ReportInfoRightSection() {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
+    const {
+        data: leaderboardData,
+        isLoading: isLeaderboardLoading,
+        isError: isLeaderboardError,
+    } = useReportsLeaderboard({
+        period: "monthly",
+        year: currentYear,
+        month: currentMonth,
+        limit: 3,
+    });
+
+    const leaderboardItems = leaderboardData?.top_operators ?? [];
+
+    const getGroupChipClass = (groupName: string): string => {
+        const normalized = groupName.toLowerCase();
+
+        if (normalized.includes("medellin")) {
+            return GROUP_CHIP_CLASS.Medellin;
+        }
+
+        if (normalized.includes("bogota")) {
+            return GROUP_CHIP_CLASS.Bogota;
+        }
+
+        return GROUP_CHIP_CLASS.Remote;
+    };
+
+    const formatCopAmount = (value: number): string => {
+        return `CO$ ${value.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })}`;
+    };
+
     return (
         <div className="space-y-4">
             <section className="rounded-[28px] border border-border bg-bg px-8 py-7 shadow-xs">
@@ -15,29 +53,40 @@ export function ReportInfoRightSection() {
                 </AppText>
 
                 <div className="mt-7 space-y-6">
-                    {TOP_OPERATORS.map((operator) => (
-                        <div key={operator.name} className="flex items-start justify-between gap-3">
-                            <div>
-                                <AppText variant="body" className="font-semibold text-text">
-                                    {operator.name}
-                                </AppText>
-                                <span
-                                    className={`mt-1 inline-flex rounded-md px-2 py-0.5 text-sm font-semibold ${GROUP_CHIP_CLASS[operator.group]}`}
-                                >
-                                    {operator.group}
-                                </span>
-                            </div>
+                    {isLeaderboardLoading ? (
+                        <AppText variant="description" className="text-text-muted">
+                            Loading leaderboard...
+                        </AppText>
+                    ) : isLeaderboardError ? (
+                        <AppText variant="description" className="text-red">
+                            Failed to load leaderboard.
+                        </AppText>
+                    ) : leaderboardItems.length === 0 ? (
+                        <AppText variant="description" className="text-text-muted">
+                            No leaderboard items found.
+                        </AppText>
+                    ) : (
+                        leaderboardItems.map((operator) => (
+                            <div key={operator.operator_db_id} className="flex items-start justify-between gap-3">
+                                <div>
+                                    <AppText variant="body" className="font-semibold text-text">
+                                        {operator.rank}. {operator.operator_name}
+                                    </AppText>
+                                    <span
+                                        className={`mt-1 inline-flex rounded-md px-2 py-0.5 text-sm font-semibold ${getGroupChipClass(operator.group_name)}`}
+                                    >
+                                        {operator.group_name}
+                                    </span>
+                                </div>
 
-                            <div className="text-right">
-                                <AppText variant="body" className="font-semibold text-text">
-                                    {operator.amount}
-                                </AppText>
-                                <AppText variant="description" className="font-bold text-green!">
-                                    {operator.change}
-                                </AppText>
+                                <div className="text-right flex items-center">
+                                    <AppText variant="body" className="font-semibold text-text">
+                                        {formatCopAmount(operator.total_bonus)}
+                                    </AppText>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
 
                 <AppButton

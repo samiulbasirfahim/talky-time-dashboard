@@ -88,12 +88,17 @@ export function useDeleteSupervisor() {
     });
 }
 
-export function useSearchSupervisors(query: string) {
+export function useSearchSupervisors(query: string, withoutGroup = false) {
     return useQuery({
-        queryKey: supervisorKeys.search(query),
+        queryKey: supervisorKeys.search(query, withoutGroup),
         queryFn: async (): Promise<SupervisorPaginatedResponse> => {
+            const params = new URLSearchParams();
+            params.set("search", query);
+            if (withoutGroup) {
+                params.set("without_group", "true");
+            }
             const response = await apiClient.get<SupervisorPaginatedResponse>(
-                `/accounts/supervisors/?search=${encodeURIComponent(query)}`,
+                `/accounts/supervisors/?${params.toString()}`,
             );
 
             return response.data;

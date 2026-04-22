@@ -11,8 +11,9 @@ import { AppText } from "../../components/text";
 import { useDebounce } from "../../lib/hooks/debounce";
 import {
     useAllGroups,
+    useAssignProfile,
     useMassAssignProfile,
-    usePaginatedProfiles,
+    useSearchProfiles,
     useSearchOperators,
 } from "../../lib/queries";
 import toast from "react-hot-toast";
@@ -66,7 +67,9 @@ export function ProfileAssignSection() {
     const [selectedOperatorId, setSelectedOperatorId] = React.useState("");
     const [selectedOperatorName, setSelectedOperatorName] = React.useState("");
     const [operatorSearch, setOperatorSearch] = React.useState("");
+    const [profileSearch, setProfileSearch] = React.useState("");
     const [selectedGroupId, setSelectedGroupId] = React.useState("");
+    const [selectedGroupName, setSelectedGroupName] = React.useState("");
     const [selectedProfileIds, setSelectedProfileIds] = React.useState<string[]>([]);
     const [targetDate, setTargetDate] = React.useState(getDefaultTargetDate);
     const [profileDropdownKey, setProfileDropdownKey] = React.useState(0);
@@ -74,17 +77,30 @@ export function ProfileAssignSection() {
 
 
     const {
+        mutateAsync: assignProfile,
+        isPending: isSingleAssigning,
+    } = useAssignProfile();
+
+    const {
         mutateAsync: massAssignProfile,
-        isPending: isAssigningProfile,
+        isPending: isMassAssigning,
     } = useMassAssignProfile();
 
     const debouncedOperatorSearch = useDebounce(operatorSearch, 500);
+    const debouncedProfileSearch = useDebounce(profileSearch, 500);
 
     const { data: operatorsData, isPending: isOperatorsPending } = useSearchOperators(
         debouncedOperatorSearch,
     );
     const { data: groupsData, isPending: isGroupsPending } = useAllGroups();
-    const { data: profilesData, isPending: isProfilesPending } = usePaginatedProfiles(1);
+    const shouldFetchProfilesForSingleAssign =
+        assignMode === "single" && Boolean(selectedOperatorId) && Boolean(selectedGroupId);
+    const { data: profilesData, isPending: isProfilesPending } = useSearchProfiles({
+        query: debouncedProfileSearch,
+        groupId: selectedGroupId || undefined,
+        withoutOperatorOnSearch: true,
+        enabled: shouldFetchProfilesForSingleAssign,
+    });
 
     const operatorOptions = React.useMemo<SearchableDropdownOption[]>(() => {
         return (operatorsData?.results ?? []).map((operator) => ({
@@ -99,6 +115,10 @@ export function ProfileAssignSection() {
                 operator.shift_display,
             ],
         }));
+    }, [operatorsData]);
+
+    const operatorById = React.useMemo(() => {
+        return new Map((operatorsData?.results ?? []).map((operator) => [String(operator.id), operator]));
     }, [operatorsData]);
 
     const groupOptions = React.useMemo<SearchableDropdownOption[]>(() => {
@@ -180,12 +200,25 @@ export function ProfileAssignSection() {
         setSelectedOperatorId(operatorId);
         setFieldErrors((prev) => ({ ...prev, operatorId: undefined }));
 
-        const selected = operatorOptions.find((option) => option.value === operatorId);
-        setSelectedOperatorName(selected?.label ?? "");
+        const selected = operatorById.get(operatorId);
+        setSelectedOperatorName(
+            selected?.full_name || selected?.operator_name || (selected ? `Operator #${selected.id}` : ""),
+        );
+
+        if (assignMode === "single") {
+            setSelectedGroupId(selected ? String(selected.group) : "");
+            setSelectedGroupName(selected?.group_name ?? "");
+            setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
+            setSelectedProfileIds([]);
+            setProfileSearch("");
+            setProfileDropdownKey((prev) => prev + 1);
+        }
     };
 
     const handleGroupChange = (groupId: string) => {
         setSelectedGroupId(groupId);
+        const selected = groupOptions.find((option) => option.value === groupId);
+        setSelectedGroupName(selected?.label ?? "");
         setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
     };
 
@@ -214,7 +247,9 @@ export function ProfileAssignSection() {
         setSelectedOperatorId("");
         setSelectedOperatorName("");
         setSelectedGroupId("");
+        setSelectedGroupName("");
         setSelectedProfileIds([]);
+        setProfileSearch("");
         setTargetDate(getDefaultTargetDate());
         setProfileDropdownKey((prev) => prev + 1);
         setFieldErrors({});
@@ -239,12 +274,31 @@ export function ProfileAssignSection() {
                 return;
             }
 
-            console.log("[Single Assign]", {
-                shift,
-                operator_id: selectedOperatorId,
-                operator_name: selectedOperatorName,
-                profile_ids: selectedProfileIds,
-            });
+            const operatorIdAsNumber = Number(selectedOperatorId);
+            const profileIdsAsNumber = selectedProfileIds
+                .map((id) => Number(id))
+                .filter((id) => Number.isFinite(id));
+
+            if (!Number.isFinite(operatorIdAsNumber)) {
+                toast.error("Invalid operator id.");
+                return;
+            }
+
+            if (profileIdsAsNumber.length === 0) {
+                toast.error("Invalid profile id.");
+                return;
+            }
+
+            try {
+                await assignProfile({
+                    operator_id: operatorIdAsNumber,
+                    profile_id: profileIdsAsNumber                });
+
+                toast.success(`Profile assigned successfully to ${selectedOperatorName || "operator"}.`);
+                resetAssignForm();
+            } catch (err: unknown) {
+                toast.error(getFormattedErrorMessage(err));
+            }
 
             return;
         }
@@ -288,14 +342,16 @@ export function ProfileAssignSection() {
             </AppText>
 
             <div className="mt-6 space-y-5">
-                <SegmentedTabBar
-                    value={assignMode}
-                    options={ASSIGN_MODE_OPTIONS}
-                    onChange={setAssignMode}
-                    wrapperClassName="w-full"
-                />
+                {
+                    <SegmentedTabBar
+                        value={assignMode}
+                        options={ASSIGN_MODE_OPTIONS}
+                        onChange={setAssignMode}
+                        wrapperClassName="w-full"
+                    />
+                }
 
-                {assignMode === "single" && (
+                {assignMode === "single" ? (
                     <SearchableDropdown
                         label="Operator"
                         value={selectedOperatorId}
@@ -309,68 +365,95 @@ export function ProfileAssignSection() {
                         description={fieldErrors.operatorId}
                         descriptionClassName="text-red"
                     />
+                ) : (
+
+
+                    <div className="space-y-2">
+                        <label htmlFor="shift-type" className="block text-base font-medium text-text">
+                            Shift Type
+                        </label>
+                        <div id="shift-type">
+                            <SegmentedTabBar
+                                value={shiftType}
+                                options={SHIFT_OPTIONS}
+                                onChange={setShiftType}
+                                wrapperClassName="w-full"
+                            />
+                        </div>
+                    </div>
                 )}
 
 
 
-                <div className="space-y-2">
-                    <label htmlFor="shift-type" className="block text-base font-medium text-text">
-                        Shift Type
-                    </label>
-                    <div id="shift-type">
-                        <SegmentedTabBar
-                            value={shiftType}
-                            options={SHIFT_OPTIONS}
-                            onChange={setShiftType}
-                            wrapperClassName="w-full"
-                        />
-                    </div>
-                </div>
-
-{
+                {
                     assignMode === "mass" && (
-                                        <AppInputField
-                    label="Target Date"
-                    type="date"
-                    value={targetDate}
-                    onChange={(value) => {
-                        setTargetDate(value);
-                        setFieldErrors((prev) => ({ ...prev, targetDate: undefined }));
-                    }}
-                    description={fieldErrors.targetDate}
-                    descriptionClassName="text-red"
-                />
+                        <AppInputField
+                            label="Target Date"
+                            type="date"
+                            value={targetDate}
+                            onChange={(value) => {
+                                setTargetDate(value);
+                                setFieldErrors((prev) => ({ ...prev, targetDate: undefined }));
+                            }}
+                            description={fieldErrors.targetDate}
+                            descriptionClassName="text-red"
+                        />
                     )
-}
+                }
 
-                <SearchableDropdown
-                    label="Group"
-                    value={selectedGroupId}
-                    options={groupOptions}
-                    onChange={handleGroupChange}
-                    placeholder={isGroupsPending ? "Loading groups..." : "Search group"}
-                    emptyText={isGroupsPending ? "Loading groups..." : "No groups found."}
-                    description={fieldErrors.groupId}
-                    descriptionClassName="text-red"
-                />
+                {assignMode === "single" ? (
+                    <AppInputField
+                        label="Group"
+                        value={selectedGroupName}
+                        placeholder="Select an operator to auto-fill group"
+                        disabled
+                        readOnly
+                        description={fieldErrors.groupId}
+                        descriptionClassName="text-red"
+                    />
+                ) : (
+                    <SearchableDropdown
+                        label="Group"
+                        value={selectedGroupId}
+                        options={groupOptions}
+                        onChange={handleGroupChange}
+                        placeholder={isGroupsPending ? "Loading groups..." : "Search group"}
+                        emptyText={isGroupsPending ? "Loading groups..." : "No groups found."}
+                        description={fieldErrors.groupId}
+                        descriptionClassName="text-red"
+                    />
+                )}
 
                 {assignMode === "single" && (
                     <div className="space-y-2">
-                        <SearchableDropdown
-                            key={profileDropdownKey}
-                            label="Profile name"
-                            value=""
-                            options={availableProfileOptions}
-                            onChange={handleAddProfile}
-                            placeholder={
-                                isProfilesPending
-                                    ? "Loading profiles..."
-                                    : "Search profile name/id"
-                            }
-                            emptyText={isProfilesPending ? "Loading profiles..." : "No profiles found."}
-                            description={fieldErrors.profileIds}
-                            descriptionClassName="text-red"
-                        />
+                        {selectedOperatorId ? (
+                            <SearchableDropdown
+                                key={profileDropdownKey}
+                                label="Profile name"
+                                value=""
+                                options={availableProfileOptions}
+                                onChange={handleAddProfile}
+                                onSearchChange={setProfileSearch}
+                                placeholder={
+                                    isProfilesPending
+                                        ? "Loading profiles..."
+                                        : "Search profile name/id"
+                                }
+                                emptyText={isProfilesPending ? "Loading profiles..." : "No profiles found for this group."}
+                                description={fieldErrors.profileIds}
+                                descriptionClassName="text-red"
+                            />
+                        ) : (
+                            <AppInputField
+                                label="Profile name"
+                                value=""
+                                placeholder="Select an operator first"
+                                disabled
+                                readOnly
+                                description={fieldErrors.profileIds}
+                                descriptionClassName="text-red"
+                            />
+                        )}
 
                         {selectedProfileIds.length > 0 && (
                             <div className="flex max-h-24 flex-wrap gap-2 overflow-y-auto rounded-lg border border-border bg-bg-secondary p-2">
@@ -402,9 +485,9 @@ export function ProfileAssignSection() {
                     className="mt-1 h-12 rounded-xl text-sm font-semibold"
 
                     onClick={handleAssignProfile}
-                    disabled={isAssigningProfile}
+                    disabled={isSingleAssigning || isMassAssigning}
                     loadingLabel={"Assigning"}
-                    isLoading={isAssigningProfile}
+                    isLoading={isSingleAssigning || isMassAssigning}
                 >
                     Assign Profile
                 </AppButton>

@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
     CreateProfilePayload,
     CreateProfileResponse,
+    LatestReassignmentsResponse,
     MassAssignProfilePayload,
     ProfilePaginatedResponse,
     ProfileResponse,
+    SingleAssignProfilePayload,
     UpdateProfilePayload,
     UpdateProfileResponse,
 } from "../../type";
@@ -30,15 +32,107 @@ export function useCreateProfile() {
     });
 }
 
-export function usePaginatedProfiles(page: number) {
+export function usePaginatedProfiles(
+    page: number,
+    groupId?: number | string,
+    enabled = true,
+) {
     return useQuery({
-        queryKey: profileKeys.paginated(page),
+        queryKey: profileKeys.paginated(page, groupId),
         queryFn: async (): Promise<ProfilePaginatedResponse> => {
+            const params = new URLSearchParams({
+                limit: String(PROFILES_PAGE_LIMIT),
+                page: String(page),
+            });
+
+            if (groupId !== undefined && groupId !== null && String(groupId).trim().length > 0) {
+                params.set("group_id", String(groupId));
+            }
+
             const response = await apiClient.get<ProfilePaginatedResponse>(
-                `/operations/profiles/?limit=${PROFILES_PAGE_LIMIT}&page=${page}`,
+                `/operations/profiles/?${params.toString()}`,
             );
             return response.data;
         },
+        enabled,
+    });
+}
+
+export function useSearchProfiles({
+    query,
+    groupId,
+    withoutOperatorOnSearch = false,
+    enabled = true,
+}: {
+    query: string;
+    groupId?: number | string;
+    withoutOperatorOnSearch?: boolean;
+    enabled?: boolean;
+}) {
+    const normalizedQuery = query.trim();
+
+    return useQuery({
+        queryKey: profileKeys.search(normalizedQuery, groupId, withoutOperatorOnSearch),
+        queryFn: async (): Promise<ProfilePaginatedResponse> => {
+            const params = new URLSearchParams({
+                limit: String(PROFILES_PAGE_LIMIT),
+            });
+
+            if (normalizedQuery.length > 0) {
+                params.set("search", normalizedQuery);
+
+
+            }
+
+                if (withoutOperatorOnSearch) {
+                    params.set("without_operator", "true");
+                }
+
+            if (groupId !== undefined && groupId !== null && String(groupId).trim().length > 0) {
+                params.set("group_id", String(groupId));
+            }
+
+            const response = await apiClient.get<ProfilePaginatedResponse>(
+                `/operations/profiles/?${params.toString()}`,
+            );
+            return response.data;
+        },
+        enabled,
+    });
+}
+
+export function useSearchProfilesForGroup({
+    query,
+    withoutGroup = false,
+    enabled = true,
+}: {
+    query: string;
+    withoutGroup?: boolean;
+    enabled?: boolean;
+}) {
+    const normalizedQuery = query.trim();
+
+    return useQuery({
+        queryKey: [...profileKeys.all(), "search-for-group", normalizedQuery, withoutGroup],
+        queryFn: async (): Promise<ProfilePaginatedResponse> => {
+            const params = new URLSearchParams({
+                limit: "10",
+            });
+
+            if (normalizedQuery.length > 0) {
+                params.set("search", normalizedQuery);
+            }
+
+            if (withoutGroup) {
+                params.set("without_group", "true");
+            }
+
+            const response = await apiClient.get<ProfilePaginatedResponse>(
+                `/operations/profiles/?${params.toString()}`,
+            );
+            return response.data;
+        },
+        enabled,
     });
 }
 
@@ -52,6 +146,19 @@ export function useProfileDetails(id: number | null) {
             return response.data;
         },
         enabled: id !== null,
+    });
+}
+
+export function useLatestReassignments(limit = 5) {
+    return useQuery({
+        queryKey: profileKeys.latestReassignments(limit),
+        queryFn: async (): Promise<LatestReassignmentsResponse> => {
+            const response = await apiClient.get<LatestReassignmentsResponse>(
+                `/operations/assignments/latest-reassignments?limit=${limit}`,
+            );
+
+            return response.data;
+        },
     });
 }
 
@@ -114,4 +221,19 @@ export function useMassAssignProfile() {
         },
     });
 
+}
+
+export function useAssignProfile() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (payload: SingleAssignProfilePayload) => {
+            const res = await apiClient.post(`/operations/assignments/assign/`, payload);
+            return res.data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: profileKeys.all() });
+            await queryClient.invalidateQueries({ queryKey: profileKeys.paginatedRoot() });
+        },
+    });
 }

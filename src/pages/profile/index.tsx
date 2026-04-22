@@ -24,7 +24,7 @@ export function Profile() {
             />
             <ProfileCards />
             <ProfileTableAssignProfile
-                isAdminView={true}
+                // isAdminView={true}
                 isCreateProfileModalOpen={createProfileModal.isOpen}
                 onCloseCreateProfileModal={createProfileModal.closeModal}
             />

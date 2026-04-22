@@ -1,3 +1,4 @@
+export * from './admin.query.type';
 export * from './auth.query.type';
 export * from './cash-advance.query.type';
 export * from './dashboard.query.type';
