@@ -3,7 +3,7 @@ export type LoginPayload = {
     password: string;
 };
 
-export type AuthUserRole = "ADMIN" | "SUPERVISOR" | string;
+export type AuthUserRole = "ADMIN" | "SUPERVISOR" | "GENERAL_MANAGER" | string;
 
 export type AuthUser = {
     id: number;
@@ -13,6 +13,7 @@ export type AuthUser = {
     last_name: string;
     role: AuthUserRole;
     is_admin: boolean;
+    is_general_manager: boolean;
     is_supervisor: boolean;
 };
 

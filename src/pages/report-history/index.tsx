@@ -39,7 +39,7 @@ export function ReportHistory() {
             <ReportHistoryCards />
             <ReportInfo />
 
-            <div className="p-4">
+            {/* <div className="p-4">
                 <ReportHistoryTable
                     data={paginatedData}
                     pagination={{
@@ -56,7 +56,7 @@ export function ReportHistory() {
                         console.log("Download report CSV");
                     }}
                 />
-            </div>
+            </div> */}
         </>
     );
 }

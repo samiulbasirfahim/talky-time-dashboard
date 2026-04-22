@@ -88,14 +88,14 @@ export function useDeleteSupervisor() {
     });
 }
 
-export function useSearchSupervisors(query: string, withoutGroup = false) {
+export function useSearchSupervisors(query: string, withoutGroup?: boolean) {
     return useQuery({
         queryKey: supervisorKeys.search(query, withoutGroup),
         queryFn: async (): Promise<SupervisorPaginatedResponse> => {
             const params = new URLSearchParams();
             params.set("search", query);
-            if (withoutGroup) {
-                params.set("without_group", "true");
+            if (withoutGroup !== undefined) {
+                params.set("without_group", String(withoutGroup));
             }
             const response = await apiClient.get<SupervisorPaginatedResponse>(
                 `/accounts/supervisors/?${params.toString()}`,
@@ -106,16 +106,26 @@ export function useSearchSupervisors(query: string, withoutGroup = false) {
     });
 }
 
-export function usePaginatedSupervisors(page: number) {
+export function usePaginatedSupervisors(page: number, groupId?: number | string, enabled = true) {
     return useQuery({
-        queryKey: supervisorKeys.paginated(page),
+        queryKey: supervisorKeys.paginated(page, groupId),
         queryFn: async (): Promise<SupervisorPaginatedResponse> => {
+            const params = new URLSearchParams({
+                limit: String(SUPERVISORS_PAGE_LIMIT),
+                page: String(page),
+            });
+
+            if (groupId !== undefined && groupId !== null && String(groupId).trim().length > 0) {
+                params.set("group_id", String(groupId));
+            }
+
             const response = await apiClient.get<SupervisorPaginatedResponse>(
-                `/accounts/supervisors/?limit=${SUPERVISORS_PAGE_LIMIT}&page=${page}`,
+                `/accounts/supervisors/?${params.toString()}`,
             );
 
             return response.data;
         },
+        enabled,
     });
 }
 

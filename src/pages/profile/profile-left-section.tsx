@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { isAxiosError } from "axios";
 import { ArrowRight, ExternalLink, History } from "lucide-react";
+import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { AppButton } from "../../components/button";
 import { ErrorActionBanner } from "../../components/error-action-banner";
@@ -29,8 +30,10 @@ import {
     useLatestReassignments,
     usePaginatedProfiles,
     useProfileDetails,
+    useReassignProfiles,
     useUpdateProfile,
     useMe,
+    useSearchProfiles,
 } from "../../lib/queries";
 import type {
     LatestReassignmentItem,
@@ -134,6 +137,7 @@ export function ProfileLeftSection({
     isCreateProfileModalOpen,
     onCloseCreateProfileModal,
 }: ProfileLeftSectionProps) {
+    const navigate = useNavigate();
     const {data: userData} = useMe();
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedTrendTab, setSelectedTrendTab] = useState<ProfileTrendTimeframe>("weekly");
@@ -147,9 +151,28 @@ export function ProfileLeftSection({
         data: latestReassignmentsData,
         isPending: isLatestReassignmentsPending,
         isError: isLatestReassignmentsError,
-    } = useLatestReassignments(5);
+    } = useLatestReassignments(3);
+    const {
+        data: profilesWithoutOperatorData,
+        isPending: isProfilesWithoutOperatorPending,
+    } = useSearchProfiles({
+        query: "",
+        withoutOperatorOnSearch: true,
+        enabled: true,
+        refetchInterval: 10000,
+    });
+    const {
+        data: profilesWithoutGroupData,
+        isPending: isProfilesWithoutGroupPending,
+    } = useSearchProfiles({
+        query: "",
+        withoutGroupOnSearch: true,
+        enabled: true,
+        refetchInterval: 10000,
+    });
     const { mutateAsync: createProfile } = useCreateProfile();
     const { mutateAsync: updateProfile } = useUpdateProfile();
+    const { mutateAsync: reassignProfiles } = useReassignProfiles();
     const {
         mutateAsync: removeAssignedOperatorFromProfile,
         isPending: isRemovingAssignedOperator,
@@ -214,26 +237,6 @@ export function ProfileLeftSection({
         setEditingProfile(row);
         setEditingProfileId(row.id);
         openEditProfileModal();
-    };
-
-    const handleSubmitReassignment = async (values: ProfileReassignmentFormValues) => {
-        const reassignedOperatorName = values.operatorName.trim() || "Assigned Operator";
-
-        setProfiles((prev) =>
-            prev.map((profile) => {
-                if (!values.profileIds.includes(String(profile.id))) {
-                    return profile;
-                }
-
-                return {
-                    ...profile,
-                    operator: reassignedOperatorName,
-                    isAssigned: true,
-                };
-            }),
-        );
-
-        toast.success(`Reassigned ${values.profileIds.length} profile(s) successfully.`);
     };
 
     const handleDeleteAssignedOperator = async () => {
@@ -445,14 +448,31 @@ export function ProfileLeftSection({
         : undefined;
 
     const profileColumns = buildProfileColumns(handleEdit, handleDelete, userData?.data.is_admin ?? false);
-    const reassignmentProfileOptions = useMemo(() => {
-        return profiles.map((profile) => ({
-            value: String(profile.id),
-            label: profile.name,
-            subtitle: `ID: ${profile.profileId}`,
-            keywords: [profile.name, profile.profileId, profile.operator],
-        }));
-    }, [profiles]);
+
+    const handleSubmitReassignment = async (values: ProfileReassignmentFormValues) => {
+        const reassignedOperatorName = values.operatorName.trim() || "Assigned Operator";
+
+        await reassignProfiles({
+            profile_id: values.profileIds,
+            new_operator_id: Number(values.operatorId),
+        });
+
+        setProfiles((prev) =>
+            prev.map((profile) => {
+                if (!values.profileIds.includes(profile.id)) {
+                    return profile;
+                }
+
+                return {
+                    ...profile,
+                    operator: reassignedOperatorName,
+                    isAssigned: true,
+                };
+            }),
+        );
+
+        toast.success(`Reassigned ${values.profileIds.length} profile(s) successfully.`);
+    };
 
     const formatReassignmentTime = (item: LatestReassignmentItem): string => {
         const sourceDate = item.end_at || item.created_at;
@@ -470,15 +490,60 @@ export function ProfileLeftSection({
     };
 
     const latestReassignments = latestReassignmentsData?.results ?? [];
+    const profilesWithoutOperator = profilesWithoutOperatorData?.results ?? [];
+    const profilesWithoutGroup = profilesWithoutGroupData?.results ?? [];
+
+    const buildProfileSummary = (profilesList: ProfileResponse[], noun: string, callToAction: string) => {
+        if (profilesList.length === 0) {
+            return "";
+        }
+
+        const maxVisible = 3;
+        const visibleNames = profilesList.slice(0, maxVisible).map((profile) => profile.profile_name || profile.name);
+        const hiddenCount = profilesList.length - visibleNames.length;
+
+        const head = visibleNames.length === 1
+            ? visibleNames[0]
+            : visibleNames.length === 2
+                ? `${visibleNames[0]} and ${visibleNames[1]}`
+                : `${visibleNames.slice(0, -1).join(", ")}, and ${visibleNames[visibleNames.length - 1]}`;
+
+        const tail = hiddenCount > 0 ? ` and ${hiddenCount} more profiles are currently ${noun}.` : ` are currently ${noun}.`;
+
+        return `${head}${tail} ${callToAction}`;
+    };
+
+    const withoutOperatorMessage = buildProfileSummary(
+        profilesWithoutOperator,
+        "without an operator",
+        "Please reassign them to an operator from the Reassign now flow.",
+    );
+
+    const withoutGroupMessage = buildProfileSummary(
+        profilesWithoutGroup,
+        "without a group",
+        "Please assign them to a group from the Supervisors page group section.",
+    );
 
     return (
         <div className="space-y-4">
-            <ErrorActionBanner
-                text="Reassignment Required"
-                description="Profiles 'Sofia_VIP', 'Luna_Premium', 'Aria_Elite' are currently offline due to operator sickness."
-                buttonText="Reassign now"
-                onPress={openReassignmentModal}
-            />
+            {profilesWithoutOperator.length > 0 && !isProfilesWithoutOperatorPending && (
+                <ErrorActionBanner
+                    text="Profiles need reassignment"
+                    description={withoutOperatorMessage}
+                    buttonText="Reassign now"
+                    onPress={openReassignmentModal}
+                />
+            )}
+
+            {profilesWithoutGroup.length > 0 && !isProfilesWithoutGroupPending && (
+                <ErrorActionBanner
+                    text="Profiles without a group"
+                    description={withoutGroupMessage}
+                    buttonText="Go to groups"
+                    onPress={() => navigate("/supervisor")}
+                />
+            )}
 
             <AppTable
                 columns={profileColumns}
@@ -592,7 +657,6 @@ export function ProfileLeftSection({
             <ProfileReassignmentModal
                 open={isReassignmentModalOpen}
                 onClose={closeReassignmentModal}
-                profileOptions={reassignmentProfileOptions}
                 onSubmit={handleSubmitReassignment}
             />
         </div>

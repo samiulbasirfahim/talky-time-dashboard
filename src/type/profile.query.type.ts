@@ -14,10 +14,13 @@ export type ProfileResponse = {
     profile_id: number;
     name: string;
     profile_name: string;
+    group?: number;
     bonus_percentage: number;
     bonus_percentage_display: string;
     is_active: boolean;
     operator: string;
+    group_id?: number;
+    group_name?: string;
     monthly_earning: number;
     current_operator: ProfileOperatorSummary | null;
     monthly_bonus_total: number;
@@ -72,6 +75,19 @@ export type MassAssignProfilePayload = {
 export type SingleAssignProfilePayload = {
     operator_id: number;
     profile_id: number[];
+};
+
+export type ProfileReassignmentPayload = {
+    profile_id: number[];
+    new_operator_id: number;
+};
+
+export type ProfileReassignmentValidationErrors = {
+    profile_id?: string[];
+    new_operator_id?: string[];
+    detail?: string | string[];
+    non_field_errors?: string[];
+    [key: string]: string[] | string | undefined;
 };
 
 export type LatestReassignmentItem = {

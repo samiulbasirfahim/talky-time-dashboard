@@ -11,6 +11,11 @@ export const SUPERVISOR_ALLOWED_ROUTES: string[] = [
     "/discipline",
 ];
 
+export const GENERAL_MANAGER_ALLOWED_ROUTES: string[] = [
+    ...SUPERVISOR_ALLOWED_ROUTES,
+    "/general-manager",
+];
+
 function normalizePathname(pathname: string) {
     if (!pathname) {
         return "/";
@@ -39,12 +44,24 @@ export function isSupervisorAllowedPath(pathname: string) {
     );
 }
 
+export function isGeneralManagerAllowedPath(pathname: string) {
+    const normalizedPathname = normalizePathname(pathname);
+
+    return GENERAL_MANAGER_ALLOWED_ROUTES.some((route) =>
+        matchesAllowedRoute(normalizedPathname, route),
+    );
+}
+
 export function canAccessPathByRole(
     role: AuthUserRole | undefined,
     pathname: string,
 ) {
     if (role === "ADMIN") {
         return true;
+    }
+
+    if (role === "GENERAL_MANAGER") {
+        return isGeneralManagerAllowedPath(pathname);
     }
 
     if (role === "SUPERVISOR") {

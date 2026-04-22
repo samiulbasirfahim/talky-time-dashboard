@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import { AppText } from "./text";
 import { AppButton } from "./button";
+import type { ReactNode } from "react";
+import { head } from "motion/react-client";
 
 type Props = {
     title: string;
@@ -13,9 +15,11 @@ type Props = {
         loadingLabel?: string;
         disabled?: boolean;
     }[];
+    headerRight?: ReactNode;
+
 };
 
-export function HeaderSection({ title, description, buttons }: Props) {
+export function HeaderSection({ title, description, buttons, headerRight }: Props) {
     return (
         <div className="flex flex-row justify-between items-center px-4 py-3">
             <div className="space-y-2 w-full">
@@ -25,7 +29,9 @@ export function HeaderSection({ title, description, buttons }: Props) {
                 </AppText>
             </div>
             <div className="flex flex-row space-x-2 shrink-0">
-                {buttons.map((button, index) => (
+                {headerRight ? (
+                    <>{headerRight}</>
+                ) : buttons.map((button, index) => (
                     <AppButton
                         variant={index % 2 === 0 ? "focus" : "outline"}
                         prefixIcon={button.icon}

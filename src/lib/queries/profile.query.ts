@@ -4,6 +4,7 @@ import type {
     CreateProfileResponse,
     LatestReassignmentsResponse,
     MassAssignProfilePayload,
+    ProfileReassignmentPayload,
     ProfilePaginatedResponse,
     ProfileResponse,
     SingleAssignProfilePayload,
@@ -61,18 +62,27 @@ export function usePaginatedProfiles(
 export function useSearchProfiles({
     query,
     groupId,
-    withoutOperatorOnSearch = false,
+    withoutOperatorOnSearch,
     enabled = true,
+    withoutGroupOnSearch,
+    refetchInterval,
 }: {
     query: string;
     groupId?: number | string;
     withoutOperatorOnSearch?: boolean;
     enabled?: boolean;
+    withoutGroupOnSearch?: boolean;
+    refetchInterval?: number;
 }) {
     const normalizedQuery = query.trim();
 
     return useQuery({
-        queryKey: profileKeys.search(normalizedQuery, groupId, withoutOperatorOnSearch),
+        queryKey: profileKeys.search(
+            normalizedQuery,
+            groupId,
+            withoutOperatorOnSearch,
+            withoutGroupOnSearch,
+        ),
         queryFn: async (): Promise<ProfilePaginatedResponse> => {
             const params = new URLSearchParams({
                 limit: String(PROFILES_PAGE_LIMIT),
@@ -80,13 +90,15 @@ export function useSearchProfiles({
 
             if (normalizedQuery.length > 0) {
                 params.set("search", normalizedQuery);
-
-
+            }
+            
+            if (withoutGroupOnSearch !== undefined) {
+                params.set("without_group", String(withoutGroupOnSearch));
             }
 
-                if (withoutOperatorOnSearch) {
-                    params.set("without_operator", "true");
-                }
+            if (withoutOperatorOnSearch !== undefined) {
+                params.set("without_operator", String(withoutOperatorOnSearch));
+            }
 
             if (groupId !== undefined && groupId !== null && String(groupId).trim().length > 0) {
                 params.set("group_id", String(groupId));
@@ -98,15 +110,17 @@ export function useSearchProfiles({
             return response.data;
         },
         enabled,
+        refetchInterval,
     });
 }
 
 export function useSearchProfilesForGroup({
     query,
-    withoutGroup = false,
+    withoutGroup,
     enabled = true,
 }: {
     query: string;
+    /** true = ungrouped only | false = grouped only | undefined = all */
     withoutGroup?: boolean;
     enabled?: boolean;
 }) {
@@ -123,8 +137,8 @@ export function useSearchProfilesForGroup({
                 params.set("search", normalizedQuery);
             }
 
-            if (withoutGroup) {
-                params.set("without_group", "true");
+            if (withoutGroup !== undefined) {
+                params.set("without_group", String(withoutGroup));
             }
 
             const response = await apiClient.get<ProfilePaginatedResponse>(
@@ -234,6 +248,22 @@ export function useAssignProfile() {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: profileKeys.all() });
             await queryClient.invalidateQueries({ queryKey: profileKeys.paginatedRoot() });
+        },
+    });
+}
+
+export function useReassignProfiles() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (payload: ProfileReassignmentPayload) => {
+            const res = await apiClient.post(`/operations/assignments/reassign/`, payload);
+            return res.data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: profileKeys.all() });
+            await queryClient.invalidateQueries({ queryKey: profileKeys.paginatedRoot() });
+            await queryClient.invalidateQueries({ queryKey: profileKeys.details("all") });
         },
     });
 }

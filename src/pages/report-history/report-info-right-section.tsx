@@ -1,8 +1,6 @@
-import { AppButton } from "../../components/button"
 import { AppText } from "../../components/text"
-import { useReportsLeaderboard } from "../../lib/queries"
+import { useAllGroupsWithLimit, useReportsLeaderboard } from "../../lib/queries"
 import {
-    MONTHLY_GROUP_COMPARISON,
     GROUP_CHIP_CLASS,
 } from "./report-info-data"
 
@@ -21,6 +19,12 @@ export function ReportInfoRightSection() {
         month: currentMonth,
         limit: 3,
     });
+
+    const {
+        data: groupsData,
+        isLoading: isGroupsLoading,
+        isError: isGroupsError,
+    } = useAllGroupsWithLimit(4);
 
     const leaderboardItems = leaderboardData?.top_operators ?? [];
 
@@ -44,6 +48,8 @@ export function ReportInfoRightSection() {
             maximumFractionDigits: 2,
         })}`;
     };
+
+    const monthlyComparisonGroups = groupsData?.results ?? [];
 
     return (
         <div className="space-y-4">
@@ -89,14 +95,14 @@ export function ReportInfoRightSection() {
                     )}
                 </div>
 
-                <AppButton
+                {/* <AppButton
                     variant="bg"
                     fullWidth
                     className="mt-6"
                     onClick={() => { }}
                 >
                     View All Performance
-                </AppButton>
+                </AppButton> */}
             </section>
 
             <section className="rounded-[28px] bg-[#2F68AB] px-8 py-8 text-white shadow-[0_18px_28px_rgba(47,104,171,0.22)]">
@@ -105,16 +111,30 @@ export function ReportInfoRightSection() {
                 </AppText>
 
                 <div className="mt-8 space-y-6">
-                    {MONTHLY_GROUP_COMPARISON.map((group) => (
-                        <div key={group.name} className="flex items-center justify-between">
-                            <AppText variant="body" className="text-white/95">
-                                {group.name}
-                            </AppText>
-                            <AppText variant="body" className="text-white">
-                                {group.amount}
-                            </AppText>
-                        </div>
-                    ))}
+                    {isGroupsLoading ? (
+                        <AppText variant="description" className="text-white/80">
+                            Loading group comparison...
+                        </AppText>
+                    ) : isGroupsError ? (
+                        <AppText variant="description" className="text-white/80">
+                            Failed to load group comparison.
+                        </AppText>
+                    ) : monthlyComparisonGroups.length === 0 ? (
+                        <AppText variant="description" className="text-white/80">
+                            No groups found.
+                        </AppText>
+                    ) : (
+                        monthlyComparisonGroups.map((group) => (
+                            <div key={group.id} className="flex items-center justify-between">
+                                <AppText variant="body" className="text-white/95">
+                                    {group.name}
+                                </AppText>
+                                <AppText variant="body" className="text-white">
+                                    {formatCopAmount(group.total_bonus ?? 0)}
+                                </AppText>
+                            </div>
+                        ))
+                    )}
                 </div>
             </section>
         </div>

@@ -79,17 +79,17 @@ export function CreateGroupModal({ open, onClose, onSubmit, defaultValues }: Cre
     const {
         data: supervisorsData,
         isPending: isSupervisorsPending,
-    } = useSearchSupervisors(debouncedSupervisorSearch, false);
+    } = useSearchSupervisors(debouncedSupervisorSearch, true);
     const {
         data: operatorsData,
         isPending: isOperatorsPending,
-    } = useSearchOperators(debouncedOperatorSearch, false);
+    } = useSearchOperators(debouncedOperatorSearch, true);
     const {
         data: profilesData,
         isPending: isProfilesPending,
     } = useSearchProfilesForGroup({
         query: debouncedProfileSearch,
-        withoutGroup: isEditMode ? false : true,
+        withoutGroup: true,
     });
 
     const allSupervisorResults = supervisorsData?.results ?? [];

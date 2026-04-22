@@ -21,7 +21,10 @@ import { DeleteConfirmModal } from "../../../components/delete-confirm-modal";
 import { useAppModal } from "../../../hooks/useAppModal";
 import { useLogout, useMe } from "../../../lib/queries";
 import { useMemo } from "react";
-import { SUPERVISOR_ALLOWED_ROUTES } from "../../../lib/access-control";
+import {
+    GENERAL_MANAGER_ALLOWED_ROUTES,
+    SUPERVISOR_ALLOWED_ROUTES,
+} from "../../../lib/access-control";
 
 const BUTTONS_GROUP_ADMIN: ButtonGroupProps[] = [
     {
@@ -56,6 +59,11 @@ const BUTTONS_GROUP_ADMIN: ButtonGroupProps[] = [
                 label: "Operators",
                 route: "/operators",
                 icon: CircleUser,
+            },
+            {
+                label: "General Manager",
+                route: "/general-manager",
+                icon: UsersRound,
             },
             {
                 label: "Profile",
@@ -131,6 +139,7 @@ const BUTTONS_GROUP_ADMIN: ButtonGroupProps[] = [
     },
 ];
 const SUPERVISOR_ALLOWED_ROUTE_SET = new Set<string>(SUPERVISOR_ALLOWED_ROUTES);
+const GENERAL_MANAGER_ALLOWED_ROUTE_SET = new Set<string>(GENERAL_MANAGER_ALLOWED_ROUTES);
 
 export function Sidebar() {
     const navigate = useNavigate();
@@ -155,6 +164,17 @@ export function Sidebar() {
                     ...group,
                     buttons: group.buttons.filter((button) =>
                         SUPERVISOR_ALLOWED_ROUTE_SET.has(button.route),
+                    ),
+                }))
+                .filter((group) => group.buttons.length > 0);
+        }
+
+        if (user.role === "GENERAL_MANAGER") {
+            return BUTTONS_GROUP_ADMIN
+                .map((group) => ({
+                    ...group,
+                    buttons: group.buttons.filter((button) =>
+                        GENERAL_MANAGER_ALLOWED_ROUTE_SET.has(button.route),
                     ),
                 }))
                 .filter((group) => group.buttons.length > 0);

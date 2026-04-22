@@ -22,6 +22,7 @@ import { ResetPasswordOtp } from "./pages/reset-password/otp";
 import { SetNewPassword } from "./pages/reset-password/set-new-password";
 import { ProtectedRoute, PublicRoute } from "./layout/protected.layout";
 import { ManagementPage } from "./pages/management/page";
+import { GeneralManagerPage } from "./pages/general-manager/page";
 
 export const routes = createBrowserRouter([
     {
@@ -68,6 +69,10 @@ export const routes = createBrowserRouter([
             {
                 path: "supervisor",
                 Component: Supervisors,
+            },
+            {
+                path: "general-manager",
+                Component: GeneralManagerPage,
             },
             {
                 path: "operators",

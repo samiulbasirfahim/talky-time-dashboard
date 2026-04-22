@@ -51,6 +51,8 @@ export function Supervisors() {
     const { mutateAsync: deleteSupervisor } = useDeleteSupervisor();
 
     const { data: me } = useMe();
+    const isSupervisorLike =
+        me?.data.role === "SUPERVISOR" || me?.data.role === "GENERAL_MANAGER";
 
     const [editingSupervisor, setEditingSupervisor] = useState<SupervisorResponse | null>(null);
 
@@ -229,7 +231,7 @@ export function Supervisors() {
                 title="Supervisors"
                 description={`Orchestrate your operator teams and leadership hierarchy.`}
                 buttons={
-                    me?.data.is_supervisor ? []
+                    isSupervisorLike ? []
                         : [
                             {
                                 label: "Create Supervisor",
@@ -244,7 +246,7 @@ export function Supervisors() {
                 onEditSupervisor={handleEditSupervisor}
                 onDeleteSupervisor={handleDeleteSupervisor}
             />
-            <TotalGroup isAdminView={!me?.data.is_supervisor}  />
+            <TotalGroup isAdminView={!isSupervisorLike}  />
 
             <CreateSupervisorModal
                 open={createSupervisorModal.isOpen}

@@ -81,32 +81,51 @@ export function useDeleteOperator() {
     });
 }
 
-export function useSearchOperators(query: string, withoutGroup = false) {
+export function useSearchOperators(
+    query: string,
+    withoutGroup?: boolean,
+    groupId?: number | string,
+    enabled = true,
+) {
     return useQuery({
-        queryKey: operatorKeys.search(query, withoutGroup),
+        queryKey: operatorKeys.search(query, withoutGroup, groupId),
         queryFn: async (): Promise<OperatorPaginatedResponse> => {
             const params = new URLSearchParams();
             params.set("search", query);
-            if (withoutGroup) {
-                params.set("without_group", "true");
+            if (withoutGroup !== undefined) {
+                params.set("without_group", String(withoutGroup));
+            }
+            if (groupId !== undefined && groupId !== null && String(groupId).trim().length > 0) {
+                params.set("group_id", String(groupId));
             }
             const response = await apiClient.get<OperatorPaginatedResponse>(
                 `/operations/operators/?${params.toString()}`,
             );
             return response.data;
         },
+        enabled,
     });
 }
 
-export function usePaginatedOperators(page: number) {
+export function usePaginatedOperators(page: number, groupId?: number | string, enabled = true) {
     return useQuery({
-        queryKey: operatorKeys.paginated(page),
+        queryKey: operatorKeys.paginated(page, groupId),
         queryFn: async (): Promise<OperatorPaginatedResponse> => {
+            const params = new URLSearchParams({
+                limit: String(OPERATORS_PAGE_LIMIT),
+                page: String(page),
+            });
+
+            if (groupId !== undefined && groupId !== null && String(groupId).trim().length > 0) {
+                params.set("group_id", String(groupId));
+            }
+
             const response = await apiClient.get<OperatorPaginatedResponse>(
-                `/operations/operators/?limit=${OPERATORS_PAGE_LIMIT}&page=${page}`,
+                `/operations/operators/?${params.toString()}`,
             );
             return response.data;
         },
+        enabled,
     });
 }
 
