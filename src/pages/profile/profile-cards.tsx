@@ -1,17 +1,24 @@
 import { CircleCheck, LayoutGrid, TriangleAlert, UserRound } from "lucide-react";
 import { StatCard, type StatCardProps } from "../../components/stat-card";
+import { usePaginatedProfiles } from "../../lib/queries";
 
-const PROFILE_CARDS: StatCardProps[] = [
+
+
+export function ProfileCards() {
+
+        const {
+            data: profileData,
+            isPending: isProfilesPending,
+            isError: isProfilesError,
+        } = usePaginatedProfiles(1);
+
+
+
+
+        const PROFILE_CARDS: StatCardProps[] = [
+
     {
-        title: "6",
-        description: "TOTAL DASHBOARD",
-        cardBackground: "bg-[#234EB71A]",
-        icon: LayoutGrid,
-        iconBackground: "bg-[#98B9F233]",
-        iconColor: "text-[#2C61E5]",
-    },
-    {
-        title: "66",
+        title: String(profileData?.total_profiles ?? 0),
         description: "TOTAL PROFILES",
         cardBackground: "bg-[#7744B31A]",
         icon: UserRound,
@@ -19,7 +26,7 @@ const PROFILE_CARDS: StatCardProps[] = [
         iconColor: "text-[#7744B3]",
     },
     {
-        title: "20",
+        title: String(profileData?.assigned_profiles ?? 0),
         description: "ASSIGNED PROFILES",
         cardBackground: "bg-[#16A34A1A]",
         icon: CircleCheck,
@@ -27,7 +34,7 @@ const PROFILE_CARDS: StatCardProps[] = [
         iconColor: "text-[#16A34A]",
     },
     {
-        title: "12",
+        title: String(profileData?.unassigned_profiles ?? 0),
         description: "UNASSIGNED PROFILES",
         cardBackground: "bg-[#DC26261A]",
         icon: TriangleAlert,
@@ -36,9 +43,9 @@ const PROFILE_CARDS: StatCardProps[] = [
     },
 ];
 
-export function ProfileCards() {
+
     return (
-        <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-2 xl:grid-cols-3">
             {PROFILE_CARDS.map((card) => (
                 <StatCard key={card.description} {...card} />
             ))}

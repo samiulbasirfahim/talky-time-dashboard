@@ -410,11 +410,12 @@ export function GeneralManagerPage() {
                             emptyText={profileTableEmptyText}
                         />
 
-                        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                        <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
                             <AppTable
                                 columns={supervisorColumns}
                                 data={supervisorRows}
                                 rowKey={(row) => row.id}
+                                className="h-auto self-start"
                                 tableAdditionalHeader={
                                     <div className="px-6 py-5">
                                         <AppText variant="smallHeader" className="text-base font-bold">
@@ -436,6 +437,7 @@ export function GeneralManagerPage() {
                                 columns={operatorColumns}
                                 data={operatorRows}
                                 rowKey={(row) => row.id}
+                                className="self-start"
                                 tableAdditionalHeader={
                                     <div className="px-6 py-5">
                                         <AppText variant="smallHeader" className="text-base font-bold">

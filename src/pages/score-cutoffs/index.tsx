@@ -3,9 +3,8 @@ import { HeaderSection } from "../../components/header-section";
 import {
     useDownloadScoreCutoffCsv,
 } from "../../lib/queries";
-import { ScoreCutoffCards } from "./score-cutoff-cards";
+import { CommonStatCards } from "../../components/common-stat-cards";
 import { ScoreCutoffTable } from "./score-cutoff-table";
-import { ScoreCutoffWindowStatus } from "./score-cutoff-window-status";
 
 export function ScoreCutoffs() {
     const { mutate: downloadCsv, isPending: isDownloadingCsv } = useDownloadScoreCutoffCsv();
@@ -30,8 +29,7 @@ export function ScoreCutoffs() {
                     },
                 ]}
             />
-            <ScoreCutoffCards />
-            <ScoreCutoffWindowStatus />
+            <CommonStatCards />
             <ScoreCutoffTable />
         </>
     );

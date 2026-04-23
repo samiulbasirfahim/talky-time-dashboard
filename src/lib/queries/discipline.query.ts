@@ -5,6 +5,7 @@ import type {
     IssueDisciplinaryWarningPayload,
     IssueDisciplinaryWarningResponse,
     RevokeDisciplinaryWarningResponse,
+    DisciplinaryOverviewResponse,
 } from "../../type";
 import { apiClient } from "../axios";
 import { disciplineKeys } from "./keys";
@@ -94,6 +95,18 @@ export function useRevokeDisciplinaryWarning() {
             await queryClient.invalidateQueries({
                 queryKey: disciplineKeys.warningLogsRoot(),
             });
+        },
+    });
+}
+
+export function useDisciplinaryOverview() {
+    return useQuery({
+        queryKey: disciplineKeys.overview(),
+        queryFn: async (): Promise<DisciplinaryOverviewResponse> => {
+            const response = await apiClient.get<DisciplinaryOverviewResponse>(
+                "/payroll/disciplinary/overview/",
+            );
+            return response.data;
         },
     });
 }

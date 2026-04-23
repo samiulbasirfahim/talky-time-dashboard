@@ -8,6 +8,7 @@ import type {
     OperatorResponse,
     UpdateOperatorPayload,
     UpdateOperatorResponse,
+    OperatorStatusChangeLatestResponse,
 } from "../../type";
 
 export const OPERATORS_PAGE_LIMIT = 10;
@@ -135,6 +136,18 @@ export function useOperatorDetails(id: string | number) {
         queryFn: async (): Promise<OperatorResponse> => {
             const response = await apiClient.get<OperatorResponse>(
                 `/operations/operators/${id}/`,
+            );
+            return response.data;
+        },
+    });
+}
+
+export function useLatestOperatorStatusChanges() {
+    return useQuery({
+        queryKey: operatorKeys.latestStatusChanges(),
+        queryFn: async (): Promise<OperatorStatusChangeLatestResponse[]> => {
+            const response = await apiClient.get<OperatorStatusChangeLatestResponse[]>(
+                "/operations/operators/status-changes/latest/",
             );
             return response.data;
         },

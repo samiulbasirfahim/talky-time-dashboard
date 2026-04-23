@@ -29,7 +29,7 @@ export function SystemEvent(props: Props) {
                 />
             </div>
             <div className="">
-                <AppText variant="smallHeader">{props.title}</AppText>
+                <AppText variant="body">{props.title}</AppText>
                 <AppText variant="description">
                     {props.description} • {props.ago}
                 </AppText>

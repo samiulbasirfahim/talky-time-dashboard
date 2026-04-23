@@ -1,5 +1,5 @@
 import { HeaderSection } from "../../components/header-section";
-import { BonusPerformanceCards } from "./bonus-performance-cards";
+import { CommonStatCards } from "../../components/common-stat-cards";
 import { BonusPerformanceTable } from "./bonus-performance-table";
 
 export function BonusPerformance() {
@@ -18,7 +18,7 @@ export function BonusPerformance() {
                     // },
                 ]}
             />
-            <BonusPerformanceCards />
+            <CommonStatCards />
             <BonusPerformanceTable />
         </>
     );

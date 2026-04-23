@@ -3,9 +3,25 @@ import type {
     DashboardEarningsResponse,
     ReportsLeaderboardPeriod,
     ReportsLeaderboardResponse,
+    ReportsSummaryResponse,
+    SystemNotificationResponse,
+    DashboardStatsResponse,
 } from "../../type";
 import { apiClient } from "../axios";
 import { dashboardKeys } from "./keys";
+
+export function useReportsSummary() {
+    return useQuery({
+        queryKey: dashboardKeys.summary(),
+        queryFn: async (): Promise<ReportsSummaryResponse> => {
+            const response = await apiClient.get<ReportsSummaryResponse>(
+                "/reports/summary/",
+            );
+
+            return response.data;
+        },
+    });
+}
 
 export function useDashboardEarnings(enabled = true) {
     return useQuery({
@@ -47,6 +63,31 @@ export function useReportsLeaderboard({
                 },
             );
 
+            return response.data;
+        },
+    });
+}
+
+export function useLatestSystemNotifications() {
+    return useQuery({
+        queryKey: [...dashboardKeys.all(), "system-notifications"] as const,
+        queryFn: async (): Promise<SystemNotificationResponse> => {
+            const response = await apiClient.get<SystemNotificationResponse>(
+                "/system-notifications/latest/",
+            );
+
+            return response.data;
+        },
+    });
+}
+
+export function useDashboardStats() {
+    return useQuery({
+        queryKey: dashboardKeys.stats(),
+        queryFn: async (): Promise<DashboardStatsResponse> => {
+            const response = await apiClient.get<DashboardStatsResponse>(
+                "/reports/dashboard-stats/",
+            );
             return response.data;
         },
     });

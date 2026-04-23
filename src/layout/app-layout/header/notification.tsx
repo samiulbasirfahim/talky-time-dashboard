@@ -2,56 +2,52 @@ import { Bell, BellDot } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { AppButton } from "../../../components/button";
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { AppText } from "../../../components/text";
+import { useLatestSystemNotifications } from "../../../lib/queries";
 
 type NotificationType = "danger" | "info" | "normal";
 
-type AppNotification = {
-    id: string;
-    type: NotificationType;
-    message: string;
-    redirectUri: string;
-    source?: string;
-    time: string;
+const METHOD_TO_NOTIFICATION_TYPE = (method: string): NotificationType => {
+    if (method === "DELETE") {
+        return "danger";
+    }
+
+    if (method === "PATCH" || method === "PUT") {
+        return "info";
+    }
+
+    return "normal";
 };
 
-const NOTIFICATIONS: AppNotification[] = [
-    {
-        id: "n-1",
-        type: "normal",
-        message: "CSV Uploaded",
-        redirectUri: "/csv-upload",
-        source: "Dashboard A",
-        time: "2m ago",
-    },
-    {
-        id: "n-2",
-        type: "danger",
-        message: "Reassignment Required, Profiles 'Sofia_VIP', 'Luna_Premium', 'Aria_Elite'",
-        redirectUri: "/profile",
-        time: "11:03am",
-    },
-    {
-        id: "n-3",
-        type: "info",
-        message: "Last Reassignments, Julian.m ID: prf4 -> Akash.65VIP",
-        redirectUri: "/profile",
-        time: "11:03am",
-    },
-    {
-        id: "n-4",
-        type: "normal",
-        message: "Sofia_P Response Late (5min+) Warn Hlm",
-        redirectUri: "/discipline",
-        time: "11:03am",
-    },
-];
+const formatAgo = (createdAt: string) => {
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) {
+        return createdAt;
+    }
+
+    const diffMs = Date.now() - date.getTime();
+    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+    if (diffMinutes < 1) return "just now";
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+};
 
 export function Notification() {
-    const navigate = useNavigate();
-    const hasUnreadNotifications = NOTIFICATIONS.length > 0;
     const [isOpen, setIsOpen] = useState(false);
+    const { data: notificationsData } = useLatestSystemNotifications();
+
+    const notifications = (notificationsData?.results ?? []).map((item) => ({
+        id: item.id,
+        type: METHOD_TO_NOTIFICATION_TYPE(item.method),
+        message: item.message,
+        source: item.actor_name,
+        time: formatAgo(item.created_at),
+    }));
+
+    const hasUnreadNotifications = notifications.length > 0;
 
     const getNotificationColor = (type: NotificationType) => {
         if (type === "danger") {
@@ -63,11 +59,6 @@ export function Notification() {
         }
 
         return "var(--color-text)";
-    };
-
-    const handleNotificationClick = (notification: AppNotification) => {
-        navigate(notification.redirectUri);
-        setIsOpen(false);
     };
 
     return (
@@ -106,36 +97,40 @@ export function Notification() {
                         >
                             <div className="h-full overflow-y-auto p-4">
                                 <div className="space-y-1.5">
-                                    {NOTIFICATIONS.map((notification) => (
-                                        <button
-                                            key={notification.id}
-                                            type="button"
-                                            className="w-full cursor-pointer rounded-lg p-3 text-left transition-colors hover:bg-bg-secondary"
-                                            onClick={() => handleNotificationClick(notification)}
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <AppText
-                                                    variant="body"
-                                                    className={`max-w-[80%] whitespace-normal font-medium leading-snug`}
-                                                    style={{
-                                                        color: getNotificationColor(notification.type),
-                                                    }}
-                                                >
-                                                    {notification.message}
-                                                </AppText>
+                                    {notifications.length === 0 ? (
+                                        <div className="rounded-lg p-3 text-sm text-text-muted">
+                                            No recent notifications.
+                                        </div>
+                                    ) : (
+                                        notifications.map((notification) => (
+                                            <div
+                                                key={notification.id}
+                                                className="w-full rounded-lg p-3 text-left"
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <AppText
+                                                        variant="body"
+                                                        className="max-w-[80%] whitespace-normal font-medium leading-snug"
+                                                        style={{
+                                                            color: getNotificationColor(notification.type),
+                                                        }}
+                                                    >
+                                                        {notification.message}
+                                                    </AppText>
 
-                                                <AppText
-                                                    variant="description"
-                                                    className="shrink-0 text-right"
-                                                    style={{ color: "var(--color-text)" }}
-                                                >
-                                                    {notification.source
-                                                        ? `${notification.source} • ${notification.time}`
-                                                        : notification.time}
-                                                </AppText>
+                                                    <AppText
+                                                        variant="description"
+                                                        className="shrink-0 text-right"
+                                                        style={{ color: "var(--color-text)" }}
+                                                    >
+                                                        {notification.source
+                                                            ? `${notification.source} • ${notification.time}`
+                                                            : notification.time}
+                                                    </AppText>
+                                                </div>
                                             </div>
-                                        </button>
-                                    ))}
+                                        ))
+                                    )}
                                 </div>
                             </div>
                         </motion.div>

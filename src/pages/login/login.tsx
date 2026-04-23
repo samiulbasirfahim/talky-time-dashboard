@@ -83,10 +83,10 @@ export function Login() {
                             toggleAriaLabel="Toggle login password visibility"
                         />
                     </div>
-
+{/* 
                     <Link to="/reset-password/email" className="ml-auto text-sm text-text-focus underline">
                         Forgot password?
-                    </Link>
+                    </Link> */}
 
                     <AppButton type="submit" variant="focus" fullWidth className="mt-2 h-11 rounded-lg text-sm font-semibold">
                         Sign In

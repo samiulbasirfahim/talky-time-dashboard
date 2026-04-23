@@ -47,6 +47,8 @@ export function Operator() {
     const { mutateAsync: deleteOperator } = useDeleteOperator();
     const [editingOperator, setEditingOperator] = React.useState<OperatorResponse | null>(null);
 
+    
+
     const handleOpenCreateOperator = () => {
         setEditingOperator(null);
         operatorModal.openModal();

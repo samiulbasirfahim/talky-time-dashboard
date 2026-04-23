@@ -84,7 +84,7 @@ export function PaymentTrendsChart() {
     };
 
     return (
-        <div className="p-4 w-full rounded-md shadow-border shadow-xs">
+        <div className="p-4 w-full rounded-md shadow-border shadow-xs border border-border">
             <div className="flex items-center justify-between mb-4">
                 <div>
                     <AppText variant="header">Total Payout Trends</AppText>

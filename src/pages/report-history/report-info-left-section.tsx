@@ -5,8 +5,26 @@ import { useDashboardEarnings } from "../../lib/queries"
 import { SegmentedTabBar } from "../../components/segmented-tab-bar"
 import { AppText } from "../../components/text"
 import { CHART_TABS } from "./report-info-data"
+import type { ReportsSummaryResponse } from "../../type"
 
-export function ReportInfoLeftSection() {
+type ReportInfoLeftSectionProps = {
+    summaryData?: ReportsSummaryResponse;
+    isSummaryPending?: boolean;
+    isSummaryError?: boolean;
+};
+
+const formatCop = (value: number | undefined) => {
+    return `CO$ ${(value ?? 0).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
+};
+
+export function ReportInfoLeftSection({
+    summaryData,
+    isSummaryPending = false,
+    isSummaryError = false,
+}: ReportInfoLeftSectionProps) {
     const [selectedTab, setSelectedTab] = useState<ProfileTrendTimeframe>("weekly")
     const { data: earningsData } = useDashboardEarnings()
 
@@ -27,11 +45,7 @@ export function ReportInfoLeftSection() {
                         </AppText>
                         <div className="flex items-end gap-2">
                             <AppText variant="header" style={{ color: "#93000A" }}>
-                                5
-                            </AppText>
-                            <AppText variant="description" className="text-text-muted text-sm font-light">
-                                {" "}
-                                across 8 operators
+                                {isSummaryPending ? "..." : String(summaryData?.active_warning_count ?? 0)}
                             </AppText>
                         </div>
                     </div>
@@ -47,11 +61,11 @@ export function ReportInfoLeftSection() {
                         </AppText>
                         <div className="flex items-end gap-2">
                             <AppText variant="header" style={{ color: "#0F172A" }}>
-                                $840.00
+                                {isSummaryPending ? "Loading..." : formatCop(summaryData?.total_deduction)}
                             </AppText>
                             <AppText variant="description" className="text-text-muted text-sm font-light">
                                 {" "}
-                                COl
+                                COP
                             </AppText>
                         </div>
                         <AppText variant="description" className="text-text-muted text-sm font-light">
@@ -59,6 +73,14 @@ export function ReportInfoLeftSection() {
                         </AppText>
                     </div>
                 </div>
+
+                {isSummaryError && (
+                    <div className="col-span-2">
+                        <AppText variant="description" className="text-red">
+                            Failed to load summary values. Showing fallback values.
+                        </AppText>
+                    </div>
+                )}
             </div>
 
             <div className="border-border border rounded-2xl shadow-xs p-8 w-full">

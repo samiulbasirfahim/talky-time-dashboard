@@ -33,7 +33,7 @@ export function TotalGroup() {
     };
 
     return (
-        <div className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4">
+        <div className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
             <AppText variant="header">Total Group</AppText>
 
             {isGroupsPending ? (

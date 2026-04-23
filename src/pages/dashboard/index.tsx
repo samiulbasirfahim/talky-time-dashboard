@@ -4,21 +4,20 @@ import { DashboardCards } from "./dashbaord-cards";
 import { PaymentTrends_TotalGroups } from "./payment-trends-total-groups";
 import { RecentActivity_SystemEvents } from "./recent-activity-system-events";
 import { useNavigate } from "react-router";
+import { useShiftStatus } from "../../hooks/use-shift-status";
 
 export function Dashboard() {
     const navigate = useNavigate();
-    const date = new Date();
+    const { isDayShift, now } = useShiftStatus();
 
-    const formattedDate = date.toLocaleDateString("en-US", {
+    const formattedDate = now.toLocaleDateString("en-US", {
         weekday: "long",
         month: "long",
         day: "numeric",
         year: "numeric",
     });
 
-    const currentHour = date.getHours();
-    const shift =
-        currentHour >= 7 && currentHour < 19 ? "Day Shift" : "Night Shift";
+    const shift = isDayShift ? "Day Shift" : "Night Shift";
 
     return (
         <div>
@@ -39,7 +38,9 @@ export function Dashboard() {
                         icon: GitBranch,
                         onClick: () => {
                             console.log("Assigning Profiles!");
+                            navigate("/profile");
                         },
+
                     },
                 ]}
             />

@@ -554,14 +554,14 @@ export function ProfileLeftSection({
                         <AppText variant="smallHeader" className="text-base font-bold">
                             All Profiles
                         </AppText>
-                        <AppButton
+                        {/* <AppButton
                             variant="link"
                             size="sm"
                             suffixIcon={ExternalLink}
                             className="p-0 text-sm font-bold"
                         >
                             View Full Report
-                        </AppButton>
+                        </AppButton> */}
                     </div>
                 }
                 pagination={{

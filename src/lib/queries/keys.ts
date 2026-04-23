@@ -33,6 +33,7 @@ export const operatorKeys = {
     details: (id: string | number) => [...operatorKeys.all(), "details", id] as const,
     paginatedRoot: () => [...operatorKeys.all(), "paginated"] as const,
     paginated: (page: number, groupId?: number | string) => [...operatorKeys.paginatedRoot(), page, groupId ?? "all-groups"] as const,
+    latestStatusChanges: () => [...operatorKeys.all(), "status-changes", "latest"] as const,
 }
 
 export const profileKeys = {
@@ -97,6 +98,8 @@ export const scoreCutoffKeys = {
 
 export const dashboardKeys = {
     all: () => ["dashboard"] as const,
+    summary: () => [...dashboardKeys.all(), "summary"] as const,
+    stats: () => [...dashboardKeys.all(), "stats"] as const,
     earnings: () => [...dashboardKeys.all(), "earnings"] as const,
     leaderboard: (period: string, year: number, month: number, limit: number) =>
         [...dashboardKeys.all(), "leaderboard", period, year, month, limit] as const,
@@ -104,6 +107,7 @@ export const dashboardKeys = {
 
 export const disciplineKeys = {
     all: () => ["discipline"] as const,
+    overview: () => [...disciplineKeys.all(), "overview"] as const,
     warnings: () => [...disciplineKeys.all(), "warnings"] as const,
     warningLogsRoot: () => [...disciplineKeys.all(), "warning-logs"] as const,
     warningLogs: (page: number) => [...disciplineKeys.warningLogsRoot(), page] as const,

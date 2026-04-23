@@ -69,3 +69,11 @@ export type DisciplinaryReprimandPaginatedResponse = {
     previous: string | null;
     results: DisciplinaryReprimandItem[];
 };
+
+export type DisciplinaryOverviewResponse = {
+    active_warnings: number;
+    active_warnings_total_operators: number;
+    reprimands: number;
+    at_risk: number;
+    monthly_reset_days_left: number;
+};

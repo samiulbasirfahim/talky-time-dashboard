@@ -64,3 +64,11 @@ export type OperatorCreateValidationErrors = {
 };
 
 export type OperatorUpdateValidationErrors = OperatorCreateValidationErrors;
+
+export type OperatorStatusChangeLatestResponse = {
+    id: number;
+    operator_name: string;
+    operator_id: string;
+    status: "active" | "inactive";
+    created_at: string;
+};
