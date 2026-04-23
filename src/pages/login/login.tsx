@@ -3,7 +3,7 @@ import { AppButton } from "../../components/button";
 import { Logo } from "../../components/logo";
 import { AppPasswordField } from "../../components/password-input-field";
 import { AppText } from "../../components/text";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { useLogin } from "../../lib/queries";
 import { AuthLayout } from "./login-layout";

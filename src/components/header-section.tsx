@@ -2,7 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import { AppText } from "./text";
 import { AppButton } from "./button";
 import type { ReactNode } from "react";
-import { head } from "motion/react-client";
 
 type Props = {
     title: string;

@@ -1,4 +1,3 @@
-import React from "react";
 import { BadgePercent } from "lucide-react";
 import { AppInputField } from "../../components/form-field";
 import { AppText } from "../../components/text";
@@ -12,9 +11,6 @@ export function SettingsPayoutConfiguration({
     qualificationThreshold,
     onQualificationThresholdChange,
 }: SettingsPayoutConfigurationProps) {
-    const [defaultCommissionRate, setDefaultCommissionRate] = React.useState("21");
-    const [highPerformanceRate, setHighPerformanceRate] = React.useState("25");
-
     return (
         <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
             <div className="space-y-1">

@@ -1,5 +1,4 @@
 import { Network, Users } from "lucide-react";
-import { StatCardContainer } from "../../components/stat-card-container";
 import { useAllGroups, usePaginatedSupervisors } from "../../lib/queries";
 import { StatCard } from "../../components/stat-card";
 

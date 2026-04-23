@@ -13,7 +13,7 @@ export function ManagementPage() {
     const adminModal = useAppModal();
     const [editingAdmin, setEditingAdmin] = useState<ManagementRow | null>(null);
     const { mutateAsync: createAdmin } = useCreateAdmin();
-    const { mutateAsync: deleteAdmin, isPending: isDeletingAdmin } = useDeleteAdmin()
+    const { mutateAsync: deleteAdmin } = useDeleteAdmin()
 
     const getFirstErrorMessage = (value: unknown): string | undefined => {
         if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {

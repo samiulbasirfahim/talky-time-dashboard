@@ -1,5 +1,4 @@
 import React from "react";
-import { ArrowLeft } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { MailCheck } from "lucide-react";

@@ -1,4 +1,4 @@
-import { CircleCheck, LayoutGrid, TriangleAlert, UserRound } from "lucide-react";
+import { CircleCheck, TriangleAlert, UserRound } from "lucide-react";
 import { StatCard, type StatCardProps } from "../../components/stat-card";
 import { usePaginatedProfiles } from "../../lib/queries";
 
@@ -8,8 +8,6 @@ export function ProfileCards() {
 
         const {
             data: profileData,
-            isPending: isProfilesPending,
-            isError: isProfilesError,
         } = usePaginatedProfiles(1);
 
 

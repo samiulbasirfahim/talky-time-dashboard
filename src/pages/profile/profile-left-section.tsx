@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { isAxiosError } from "axios";
-import { ArrowRight, ExternalLink, History } from "lucide-react";
+import { ArrowRight, History } from "lucide-react";
 import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
-import { AppButton } from "../../components/button";
 import { ErrorActionBanner } from "../../components/error-action-banner";
 import { ProfileTrendChart, type ProfileTrendTimeframe } from "../../components/profile-trend-chart";
 import { SegmentedTabBar } from "../../components/segmented-tab-bar";
@@ -92,8 +91,8 @@ const buildProfileColumns = (
                     <AppText
                         variant="description"
                         className={`text-sm ${row.isAssigned
-                                ? "font-medium text-text-secondary"
-                                : "italic text-text-muted"
+                            ? "font-medium text-text-secondary"
+                            : "italic text-text-muted"
                             }`}
                     >
                         {row.operator}
@@ -138,7 +137,7 @@ export function ProfileLeftSection({
     onCloseCreateProfileModal,
 }: ProfileLeftSectionProps) {
     const navigate = useNavigate();
-    const {data: userData} = useMe();
+    const { data: userData } = useMe();
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedTrendTab, setSelectedTrendTab] = useState<ProfileTrendTimeframe>("weekly");
     const [profiles, setProfiles] = useState<ProfileRow[]>([]);
@@ -585,7 +584,7 @@ export function ProfileLeftSection({
                             { label: "Weekly", value: "weekly" },
                             { label: "Monthly", value: "monthly" },
                         ]}
-                        onChange={setSelectedTrendTab}
+                        onChange={(value) => setSelectedTrendTab(value as ProfileTrendTimeframe)}
                     />
                 </div>
 
