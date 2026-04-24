@@ -93,7 +93,7 @@ export const csvKeys = {
 export const scoreCutoffKeys = {
     all: () => ["score-cutoffs"] as const,
     paginatedRoot: () => [...scoreCutoffKeys.all(), "paginated"] as const,
-    paginated: (page: number) => [...scoreCutoffKeys.paginatedRoot(), page] as const,
+    paginated: (page: number, date: string) => [...scoreCutoffKeys.paginatedRoot(), page, date] as const,
 }
 
 export const dashboardKeys = {

@@ -48,7 +48,6 @@ const processQueue = (error: unknown, token: string | null = null) => {
 const refreshAccessToken = async (): Promise<string> => {
     try {
         const refresh = useAuthStore.getState().refreshToken;
-
         const response = await plainApiClient({
             method: "POST",
             url: "/accounts/refresh/",

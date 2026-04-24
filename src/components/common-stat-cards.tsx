@@ -2,23 +2,30 @@ import { Award, Sun, Moon, CalendarDays } from "lucide-react";
 import { useMemo } from "react";
 import { useShiftStatus } from "../hooks/use-shift-status";
 import { StatCard, type StatCardProps } from "./stat-card";
+import { useBonusPerformanceStats } from "../lib/queries/stats.query";
 
 export function CommonStatCards() {
     const { isDayShift, now } = useShiftStatus();
+    const { data, isLoading } = useBonusPerformanceStats();
 
     const formattedDateTime = useMemo(() => {
-        const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-        const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+        const dateStr = now.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        });
+        const timeStr = now.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        });
         return `${dateStr} — ${timeStr}`;
     }, [now]);
 
     const CARDS: StatCardProps[] = [
         {
-            title: "1,025",
+            title: isLoading ? "Loading" : String(data.daily_total) || "0",
             description: "Total Bonuses",
-            badge: "+4.2%",
-            badgeBackground: "bg-[#FFFBEB]",
-            badgeTextColor: "text-[#F59E0B]",
             cardBackground: "bg-[#F3B2001A]",
             icon: Award,
             iconBackground: "bg-[#F3B20026]",

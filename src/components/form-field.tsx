@@ -3,7 +3,7 @@ import { AppDropdown, type DropdownOption } from "./dropdown";
 import { AppText } from "./text";
 
 type BaseFieldProps = {
-    label: string;
+    label?: string;
     description?: string;
     containerClassName?: string;
     labelClassName?: string;

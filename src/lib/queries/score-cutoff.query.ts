@@ -29,12 +29,12 @@ const downloadCsvFile = (csvData: string, fileName: string) => {
     URL.revokeObjectURL(url);
 };
 
-export function usePaginatedScoreCutoffs(page: number) {
+export function usePaginatedScoreCutoffs(page: number, date: string) {
     return useQuery({
-        queryKey: scoreCutoffKeys.paginated(page),
+        queryKey: scoreCutoffKeys.paginated(page, date),
         queryFn: async (): Promise<ScoreCutoffPaginatedResponse> => {
             const response = await apiClient.get<ScoreCutoffPaginatedResponse>(
-                `/operations/score-cutoffs/page/?page=${page}`,
+                `/operations/score-cutoffs/daily/?page=${page}&date=${date}`,
             );
 
             return response.data;

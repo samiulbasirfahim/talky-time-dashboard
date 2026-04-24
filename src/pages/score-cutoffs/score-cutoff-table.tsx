@@ -9,6 +9,7 @@ import {
     usePaginatedScoreCutoffs,
 } from "../../lib/queries";
 import type { ScoreCutoffResponse } from "../../type";
+import { AppInputField } from "../../components/form-field";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,15 @@ const columns: TableColumn<ScoreCutoffRow>[] = [
 
 export const ScoreCutoffTable = () => {
     const [currentPage, setCurrentPage] = useState(1);
-    const { data, isLoading, isError } = usePaginatedScoreCutoffs(currentPage);
+    const [date, setDate] = useState<string>(() => {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, "0");
+        const dd = String(today.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+    });
+
+    const { data, isLoading, isError } = usePaginatedScoreCutoffs(currentPage, date);
 
     const rows = useMemo<ScoreCutoffRow[]>(() => {
         return (data?.results ?? []).map(toRow);
@@ -94,6 +103,11 @@ export const ScoreCutoffTable = () => {
         : isError
             ? "Failed to load score cutoff data."
             : "No score cutoff data available.";
+
+    const handleDateChange = (newDate: string) => {
+        setDate(newDate);
+        setCurrentPage(1);
+    };
 
     return (
         <div className="p-4">
@@ -109,6 +123,16 @@ export const ScoreCutoffTable = () => {
                     onPageChange: setCurrentPage,
                     itemLabel: "operators",
                 }}
+                tableAdditionalHeader={
+                    <div className="flex w-full items-center justify-end pb-2 px-2">
+                        <AppInputField
+                            type="date"
+                            value={date}
+                            onChange={handleDateChange}
+                            containerClassName="w-[200px]"
+                        />
+                    </div>
+                }
             />
         </div>
     );
