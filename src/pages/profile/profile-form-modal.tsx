@@ -5,6 +5,8 @@ import { AppInputField } from "../../components/form-field";
 import { FormModalShell } from "../../components/form-modal-shell";
 import { SegmentedTabBar } from "../../components/segmented-tab-bar";
 import { AppText } from "../../components/text";
+import { SearchableDropdown, type SearchableDropdownOption } from "../../components/searchable-dropdown";
+import { useAllGroups } from "../../lib/queries";
 import type { ProfileOperatorSummary } from "../../type";
 
 export type BonusPercentage = "21%" | "25%";
@@ -15,6 +17,7 @@ export interface ProfileFormValues {
     operatorId: string;
     bonusPercentage: BonusPercentage;
     supervisorName?: string;
+    group: string;
 }
 
 interface ProfileFormModalProps {
@@ -33,6 +36,7 @@ const EMPTY_FORM: ProfileFormValues = {
     operatorId: "",
     bonusPercentage: "21%",
     supervisorName: "",
+    group: "",
 };
 
 export function ProfileFormModal({
@@ -46,6 +50,17 @@ export function ProfileFormModal({
 }: ProfileFormModalProps) {
     const [formValues, setFormValues] = React.useState<ProfileFormValues>(EMPTY_FORM);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+    const { data: groupsData, isPending: isGroupsPending } = useAllGroups();
+
+    const groupOptions = React.useMemo<SearchableDropdownOption[]>(() => {
+        return (groupsData?.results ?? []).map((group) => ({
+            value: String(group.id),
+            label: group.name,
+            subtitle: `${group.operator_count} operators`,
+            keywords: [group.name],
+        }));
+    }, [groupsData]);
 
     React.useEffect(() => {
         if (!open) {
@@ -111,6 +126,15 @@ export function ProfileFormModal({
                     setFormValues((prev) => ({ ...prev, profileName: value }))
                 }
                 placeholder="Enter Profile name"
+            />
+
+            <SearchableDropdown
+                label="Group"
+                value={formValues.group}
+                options={groupOptions}
+                onChange={(value) => setFormValues((prev) => ({ ...prev, group: value }))}
+                placeholder={isGroupsPending ? "Loading groups..." : "Search group"}
+                emptyText={isGroupsPending ? "Loading groups..." : "No groups found."}
             />
 
 

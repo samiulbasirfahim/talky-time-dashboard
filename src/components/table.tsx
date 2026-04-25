@@ -93,7 +93,7 @@ export const TablePagination = ({
     );
 
     return (
-        <div className="flex items-center justify-between border-t border-border bg-bg-secondary px-6 py-3">
+        <div className="flex items-center justify-between border-t border-border bg-bg-secondary px-6 py-3 rounded-b-xl overflow-hidden">
             <p className="text-xs text-text-secondary">
                 Showing <span className="font-medium text-text">{from}</span> to{" "}
                 <span className="font-medium text-text">{to}</span> of{" "}
@@ -178,15 +178,15 @@ export function AppTable<T>({
 
     return (
         <div
-            className={`w-full overflow-hidden rounded-xl border border-border bg-bg ${className}`}
+            className={`w-full rounded-xl border border-border bg-bg ${className}`}
         >
             {tableAdditionalHeader && (
-                <div className="border-b border-border">{tableAdditionalHeader}</div>
+                <div className="border-b border-border rounded-t-xl">{tableAdditionalHeader}</div>
             )}
 
             <table className="w-full border-collapse">
                 <thead>
-                    <tr className="bg-bg-secondary">
+                    <tr className=" rounded-t-xl overflow-hidden">
                         {columns.map((col) => (
                             <th
                                 key={col.key}
@@ -354,6 +354,7 @@ export const TableNumericCell = ({
 
 interface AvatarItem {
     initials: string;
+    name?: string;
     color?: string;
 }
 interface TableAvatarStackProps {
@@ -376,13 +377,13 @@ export const TableAvatarStack = ({
     const overflow = avatars.length - max;
 
     return (
-        <div className="flex items-center">
+        <div className="group relative flex items-center">
             {visible.map((av, i) => {
                 const palette = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                 return (
                     <span
                         key={i}
-                        title={av.initials}
+                        title={av.name || av.initials}
                         style={{
                             backgroundColor: av.color ?? palette.bg,
                             color: palette.text,
@@ -411,6 +412,27 @@ export const TableAvatarStack = ({
                 >
                     +{overflow}
                 </span>
+            )}
+
+            {avatars.length > 0 && (
+                <div className="absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 flex-col rounded-lg border border-border bg-white p-3 shadow-lg group-hover:flex min-w-[160px] max-h-48 overflow-y-auto">
+                    <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                        Active Profiles
+                    </span>
+                    <ul className="flex flex-col gap-1.5">
+                        {avatars.map((av, idx) => (
+                            <li key={idx} className="flex items-center gap-2 text-sm text-text-secondary">
+                                <span
+                                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                                    style={{
+                                        backgroundColor: av.color ?? AVATAR_PALETTE[idx % AVATAR_PALETTE.length].bg,
+                                    }}
+                                />
+                                <span className="truncate">{av.name || av.initials}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             )}
         </div>
     );

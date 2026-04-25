@@ -24,5 +24,5 @@ export function ProfileTableAssignProfile({
                 <ProfileAssignSection />
             </div>
         </div>
-    );      
+    );
 }

@@ -42,6 +42,7 @@ export type CreateProfilePayload = {
     profile_name: string;
     bonus_percentage: number;
     is_active: boolean;
+    group?: number | string;
 };
 
 export type CreateProfileResponse = ProfileResponse;
@@ -52,6 +53,7 @@ export type UpdateProfilePayload = Partial<{
     profile_id: number | string;
     bonus_percentage: number;
     remove_operator: boolean;
+    group?: number | string;
 }>;
 
 export type UpdateProfileResponse = ProfileResponse;

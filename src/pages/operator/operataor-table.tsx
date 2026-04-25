@@ -25,6 +25,7 @@ export type ShiftType = "day" | "night";
 
 interface ActiveProfile {
     initials: string;
+    name: string;
     color?: string;
 }
 
@@ -181,6 +182,7 @@ export const OperatorsTable = ({
             shift: operator.shift === "NIGHT" ? "night" : "day",
             activeProfiles: (operator.current_profiles ?? []).map((profile, index) => ({
                 initials: extractProfileInitials(profile),
+                name: profile.profile_name || "Unknown Profile",
                 color: PROFILE_COLORS[index % PROFILE_COLORS.length],
             })),
             totalBonuses: Number(operator.total_bonus_usd ?? 0),

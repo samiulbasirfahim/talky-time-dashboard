@@ -26,7 +26,6 @@ type AssignFieldErrors = {
     operatorId?: string;
     groupId?: string;
     profileIds?: string;
-    targetDate?: string;
 };
 
 const getDefaultTargetDate = () => {
@@ -71,7 +70,6 @@ export function ProfileAssignSection() {
     const [selectedGroupId, setSelectedGroupId] = React.useState("");
     const [selectedGroupName, setSelectedGroupName] = React.useState("");
     const [selectedProfileIds, setSelectedProfileIds] = React.useState<string[]>([]);
-    const [targetDate, setTargetDate] = React.useState(getDefaultTargetDate);
     const [profileDropdownKey, setProfileDropdownKey] = React.useState(0);
     const [fieldErrors, setFieldErrors] = React.useState<AssignFieldErrors>({});
 
@@ -250,7 +248,6 @@ export function ProfileAssignSection() {
         setSelectedGroupName("");
         setSelectedProfileIds([]);
         setProfileSearch("");
-        setTargetDate(getDefaultTargetDate());
         setProfileDropdownKey((prev) => prev + 1);
         setFieldErrors({});
     };
@@ -305,10 +302,6 @@ export function ProfileAssignSection() {
 
         const nextErrors: AssignFieldErrors = {};
 
-        if (!targetDate) {
-            nextErrors.targetDate = "Please select a date.";
-        }
-
         if (!selectedGroupId) {
             nextErrors.groupId = "Please select a group.";
         }
@@ -320,7 +313,7 @@ export function ProfileAssignSection() {
 
         try {
             await massAssignProfile({
-                target_date: targetDate,
+                target_date: getDefaultTargetDate(),
                 shift,
                 group_id: Number(selectedGroupId),
             });
@@ -346,7 +339,7 @@ export function ProfileAssignSection() {
                     <SegmentedTabBar
                         value={assignMode}
                         options={ASSIGN_MODE_OPTIONS}
-                        onChange={setAssignMode}
+                        onChange={(val) => setAssignMode(val as AssignMode)}
                         wrapperClassName="w-full"
                     />
                 }
@@ -376,31 +369,12 @@ export function ProfileAssignSection() {
                             <SegmentedTabBar
                                 value={shiftType}
                                 options={SHIFT_OPTIONS}
-                                onChange={setShiftType}
+                                onChange={(val) => setShiftType(val as ShiftType)}
                                 wrapperClassName="w-full"
                             />
                         </div>
                     </div>
                 )}
-
-
-
-                {
-                    assignMode === "mass" && (
-                        <AppInputField
-                            label="Target Date"
-                            type="date"
-                            value={targetDate}
-                            onChange={(value) => {
-                                setTargetDate(value);
-                                setFieldErrors((prev) => ({ ...prev, targetDate: undefined }));
-                            }}
-                            description={fieldErrors.targetDate}
-                            descriptionClassName="text-red"
-                        />
-                    )
-                }
-
                 {assignMode === "single" ? (
                     <AppInputField
                         label="Group"

@@ -350,6 +350,7 @@ export function ProfileLeftSection({
                 profile_name: trimmedProfileName,
                 bonus_percentage: Number(values.bonusPercentage.replace("%", "")),
                 profile_id: trimmedProfileId,
+                group: values.group ? Number(values.group) : undefined,
             };
 
             try {
@@ -404,6 +405,7 @@ export function ProfileLeftSection({
                 profile_name: trimmedProfileName,
                 bonus_percentage: Number(values.bonusPercentage.replace("%", "")),
                 is_active: true,
+                group: values.group ? Number(values.group) : undefined,
             });
 
             toast.success("Profile created successfully.");
@@ -443,6 +445,7 @@ export function ProfileLeftSection({
                         ? "21%"
                         : (editingProfile.threshold as BonusPercentage),
             supervisorName: editingProfile.supervisorName || "",
+            group: String(editingProfileDetails?.group_id ?? editingProfileDetails?.group ?? ""),
         }
         : undefined;
 
