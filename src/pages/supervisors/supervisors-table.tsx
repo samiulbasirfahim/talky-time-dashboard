@@ -1,5 +1,5 @@
 // screens/SupervisorsScreen.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
     AppTable,
     TableActions,
@@ -8,7 +8,10 @@ import {
     TableIdentity,
     type TableColumn,
 } from "../../components/table";
-import { SUPERVISORS_PAGE_LIMIT, usePaginatedSupervisors } from "../../lib/queries";
+import { CompactSearchableDropdown } from "../../components/searchable-dropdown";
+import { AppText } from "../../components/text";
+import { useDebounce } from "../../lib/hooks/debounce";
+import { SUPERVISORS_PAGE_LIMIT, usePaginatedSupervisors, useSearchGroups } from "../../lib/queries";
 import type { SupervisorResponse } from "../../type";
 
 interface SupervisorRow {
@@ -80,11 +83,19 @@ const buildColumns = (
 
 export const SupervisorsTable = ({ onEditSupervisor, onDeleteSupervisor }: SupervisorsTableProps) => {
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectedGroupId, setSelectedGroupId] = useState("");
+    const [groupSearch, setGroupSearch] = useState("");
+    const debouncedGroupSearch = useDebounce(groupSearch, 500);
+    const { data: groupsData } = useSearchGroups(debouncedGroupSearch);
     const {
         data: paginatedData,
         isPending,
         isError,
-    } = usePaginatedSupervisors(currentPage);
+    } = usePaginatedSupervisors(currentPage, selectedGroupId ? selectedGroupId : undefined);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedGroupId]);
 
     const supervisors = useMemo<SupervisorRow[]>(() => {
         return (paginatedData?.results ?? []).map((supervisor: SupervisorResponse) => ({
@@ -106,6 +117,24 @@ export const SupervisorsTable = ({ onEditSupervisor, onDeleteSupervisor }: Super
         onDeleteSupervisor?.(id);
     };
 
+    const groupOptions = useMemo(() => {
+        const fetchedOptions = (groupsData?.results ?? []).map((group) => ({
+            value: String(group.id),
+            label: group.name,
+            subtitle: `Operators: ${group.operator_count ?? 0} | Supervisors: ${group.supervisor_count ?? 0}`,
+            keywords: [
+                `Total: ${group.operators_summary?.total ?? 0}`,
+                `Day: ${group.operators_summary?.day_shift ?? 0}`,
+                `Night: ${group.operators_summary?.night_shift ?? 0}`,
+                ...(group.supervisors ?? []).map(
+                    (supervisor) => supervisor.supervisor_name || supervisor.name,
+                ),
+            ],
+        }));
+
+        return [{ label: "All Groups", value: "" }, ...fetchedOptions];
+    }, [groupsData]);
+
     const columns = buildColumns(handleEdit, handleDelete);
     const emptyText = isPending
         ? "Loading supervisors..."
@@ -119,6 +148,22 @@ export const SupervisorsTable = ({ onEditSupervisor, onDeleteSupervisor }: Super
                 columns={columns}
                 data={supervisors}
                 rowKey={(r) => String(r.id)}
+                tableAdditionalHeader={
+                    <div className="flex items-center justify-between px-6 py-5 gap-4">
+                        <AppText variant="smallHeader" className="text-base font-bold">
+                            Supervisors
+                        </AppText>
+                        <div className="w-48">
+                            <CompactSearchableDropdown
+                                options={groupOptions}
+                                value={selectedGroupId}
+                                onChange={setSelectedGroupId}
+                                onSearchChange={setGroupSearch}
+                                placeholder="Filter by group..."
+                            />
+                        </div>
+                    </div>
+                }
                 emptyText={emptyText}
                 pagination={{
                     currentPage,

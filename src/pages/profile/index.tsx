@@ -14,13 +14,13 @@ export function Profile() {
             <HeaderSection
                 title="Profile"
                 description={`10 total · 9 active · 4 with 25% rule`}
-                buttons={me?.data.is_admin ? [
+                buttons={me?.data.role === "SUPERVISOR" ? [] : [
                     {
                         label: "Create Profile",
                         icon: UserPlus,
                         onClick: createProfileModal.openModal,
                     },
-                ] : []}
+                ]}
             />
             <ProfileCards />
             <ProfileTableAssignProfile

@@ -368,3 +368,205 @@ export function SearchableDropdown({
         </div>
     );
 }
+
+// ── Compact Searchable Dropdown ────────────────────────────────────────────────
+
+export interface CompactSearchableDropdownProps {
+    options: SearchableDropdownOption[];
+    value: string;
+    onChange: (value: string) => void;
+    onSearchChange?: (query: string) => void;
+    placeholder?: string;
+    emptyText?: string;
+}
+
+export function CompactSearchableDropdown({
+    options,
+    value,
+    onChange,
+    onSearchChange,
+    placeholder = "Search...",
+    emptyText = "No results found.",
+}: CompactSearchableDropdownProps) {
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    const [open, setOpen] = React.useState(false);
+    const [query, setQuery] = React.useState("");
+    const [selectedLabel, setSelectedLabel] = React.useState("All Groups");
+
+    const selectedOption = options.find((o) => o.value === value);
+
+    React.useEffect(() => {
+        if (!value) {
+            setSelectedLabel("All Groups");
+            return;
+        }
+
+        if (selectedOption?.label) {
+            setSelectedLabel(selectedOption.label);
+        }
+    }, [value, selectedOption]);
+
+    const closeDropdown = useCallback(() => {
+        setOpen(false);
+        setQuery(selectedLabel);
+    }, [selectedLabel]);
+
+    React.useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (!wrapperRef.current?.contains(e.target as Node)) {
+                closeDropdown();
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [closeDropdown]);
+
+    React.useEffect(() => {
+        if (!open) {
+            setQuery(selectedLabel);
+            return;
+        }
+
+        if (query === selectedLabel) {
+            setQuery("");
+            onSearchChange?.("");
+        }
+
+        if (searchInputRef.current) {
+            setTimeout(() => searchInputRef.current?.focus(), 0);
+        }
+    }, [open, query, selectedLabel, onSearchChange]);
+
+    const filteredOptions = options.filter((option) => {
+        if (!query.trim()) return true;
+        const needle = query.toLowerCase();
+        const haystack = [
+            option.label,
+            option.value,
+            option.subtitle ?? "",
+            ...(option.keywords ?? []),
+        ]
+            .join(" ")
+            .toLowerCase();
+        return haystack.includes(needle);
+    });
+
+    const handleSelect = (option: SearchableDropdownOption) => {
+        onChange(option.value);
+        setSelectedLabel(option.label);
+        setQuery(option.label);
+        setOpen(false);
+    };
+
+    const triggerLabel = selectedLabel;
+
+    return (
+        <div className="relative" ref={wrapperRef}>
+            {/* Trigger Button - Minimal */}
+            <motion.button
+                type="button"
+                onClick={() => (open ? closeDropdown() : setOpen(true))}
+                className={[
+                    "h-9 w-full px-3 rounded-lg border text-sm font-medium transition-all duration-150",
+                    "flex items-center gap-2 justify-between min-w-32",
+                    open
+                        ? "border-text-focus bg-white shadow-[0_0_0_3px_rgba(var(--color-focus-ring),0.15)]"
+                        : "border-border bg-tab-bg text-text-secondary hover:border-text-muted hover:bg-bg-secondary",
+                ].join(" ")}
+            >
+                <span className="truncate text-sm">{triggerLabel}</span>
+                <motion.svg
+                    animate={{ rotate: open ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    className="shrink-0 text-text-muted"
+                >
+                    <path d="M2.5 5L7 9.5L11.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </motion.svg>
+            </motion.button>
+
+            {/* Dropdown with Search Inside */}
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        key="dropdown"
+                        variants={dropdownVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        className="absolute left-0 right-0 z-50 mt-1 rounded-xl border border-border bg-bg shadow-xl ring-1 ring-black/5 overflow-hidden"
+                    >
+                        {/* Search Field Inside Dropdown */}
+                        <div className="relative px-2 py-2 border-b border-border bg-bg-secondary">
+                            <SearchIcon />
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                value={query}
+                                onChange={(e) => {
+                                    const next = e.target.value;
+                                    setQuery(next);
+                                    onSearchChange?.(next);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") {
+                                        closeDropdown();
+                                    }
+                                    if (e.key === "Enter" && filteredOptions.length === 1) {
+                                        handleSelect(filteredOptions[0]);
+                                    }
+                                }}
+                                placeholder={placeholder}
+                                className="h-8 w-full rounded-lg border border-border bg-bg pl-8 pr-3 text-sm text-text-secondary outline-none transition-all hover:border-text-muted focus:border-text-focus focus:bg-white focus:shadow-[0_0_0_3px_rgba(var(--color-focus-ring),0.15)]"
+                            />
+                        </div>
+
+                        {/* Options List */}
+                        {filteredOptions.length === 0 ? (
+                            <motion.div
+                                variants={emptyVariants}
+                                initial="hidden"
+                                animate="visible"
+                                className="flex flex-col items-center gap-1 px-4 py-3 text-center"
+                            >
+                                <AppText variant="description" className="text-xs text-text-muted">
+                                    {emptyText}
+                                </AppText>
+                            </motion.div>
+                        ) : (
+                            <div className="py-1">
+                                {filteredOptions.map((option, i) => {
+                                    const isSelected = option.value === value;
+                                    return (
+                                        <motion.button
+                                            key={option.value}
+                                            type="button"
+                                            custom={i}
+                                            variants={itemVariants}
+                                            initial="hidden"
+                                            animate="visible"
+                                            onClick={() => handleSelect(option)}
+                                            className={[
+                                                "flex w-full items-center px-3 py-2 text-left text-sm transition-colors",
+                                                isSelected
+                                                    ? "bg-bg-secondary text-text font-medium"
+                                                    : "text-text-secondary hover:bg-bg-secondary",
+                                            ].join(" ")}
+                                        >
+                                            <span className="truncate">{option.label}</span>
+                                        </motion.button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
