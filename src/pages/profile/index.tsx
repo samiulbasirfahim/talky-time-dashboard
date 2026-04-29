@@ -13,7 +13,7 @@ export function Profile() {
         <>
             <HeaderSection
                 title="Profile"
-                description={`10 total · 9 active · 4 with 25% rule`}
+                description={``}
                 buttons={me?.data.role === "SUPERVISOR" ? [] : [
                     {
                         label: "Create Profile",
