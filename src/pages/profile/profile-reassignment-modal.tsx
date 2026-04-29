@@ -43,7 +43,10 @@ type SelectedProfileItem = {
 
 const getFirstErrorMessage = (value: unknown): string | undefined => {
     if (Array.isArray(value)) {
-        const firstValue = value.find((item): item is string => typeof item === "string" && item.trim().length > 0);
+        const firstValue = value.find(
+            (item): item is string =>
+                typeof item === "string" && item.trim().length > 0,
+        );
         return firstValue?.trim();
     }
 
@@ -77,13 +80,17 @@ export function ProfileReassignmentModal({
     onClose,
     onSubmit,
 }: ProfileReassignmentModalProps) {
-    const [selectedProfiles, setSelectedProfiles] = React.useState<SelectedProfileItem[]>([]);
+    const [selectedProfiles, setSelectedProfiles] = React.useState<
+        SelectedProfileItem[]
+    >([]);
     const [selectedOperatorId, setSelectedOperatorId] = React.useState("");
     const [selectedOperatorName, setSelectedOperatorName] = React.useState("");
     const [operatorSearch, setOperatorSearch] = React.useState("");
     const [profileSearch, setProfileSearch] = React.useState("");
     const [profileDropdownKey, setProfileDropdownKey] = React.useState(0);
-    const [fieldErrors, setFieldErrors] = React.useState<ReassignmentFieldErrors>({});
+    const [fieldErrors, setFieldErrors] = React.useState<ReassignmentFieldErrors>(
+        {},
+    );
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const debouncedOperatorSearch = useDebounce(operatorSearch, 500);
@@ -92,7 +99,8 @@ export function ProfileReassignmentModal({
     const selectedProfileGroupId = selectedProfiles[0]?.groupId ?? null;
     const selectedProfileGroupName = selectedProfiles[0]?.groupName ?? "";
 
-    const operatorSearchQuery = selectedProfiles.length > 0 ? debouncedOperatorSearch : "";
+    const operatorSearchQuery =
+        selectedProfiles.length > 0 ? debouncedOperatorSearch : "";
 
     const {
         data: operatorsData,
@@ -135,7 +143,10 @@ export function ProfileReassignmentModal({
     const operatorOptions = React.useMemo<SearchableDropdownOption[]>(() => {
         return (operatorsData?.results ?? []).map((operator: OperatorResponse) => ({
             value: String(operator.id),
-            label: operator.full_name || operator.operator_name || `Operator #${operator.id}`,
+            label:
+                operator.full_name ||
+                operator.operator_name ||
+                `Operator #${operator.id}`,
             subtitle: `ID: ${operator.operator_id}`,
             keywords: [
                 operator.operator_id,
@@ -152,13 +163,20 @@ export function ProfileReassignmentModal({
         [selectedProfiles],
     );
 
-    const profileOptions = React.useMemo<(SearchableDropdownOption & {
-        groupId: number | null;
-        groupName: string;
-    })[]>(() => {
+    const profileOptions = React.useMemo<
+        (SearchableDropdownOption & {
+            groupId: number | null;
+            groupName: string;
+        })[]
+    >(() => {
         return (profilesData?.results ?? []).map((profile: ProfileResponse) => {
-            const groupId = profile.group ?? profile.group_id ?? profile.current_operator?.group_id ?? null;
-            const groupName = profile.group_name ?? profile.current_operator?.group_name ?? "";
+            const groupId =
+                profile.group ??
+                profile.group_id ??
+                profile.current_operator?.group_id ??
+                null;
+            const groupName =
+                profile.group_name ?? profile.current_operator?.group_name ?? "";
 
             return {
                 value: String(profile.id),
@@ -178,7 +196,9 @@ export function ProfileReassignmentModal({
     }, [profilesData]);
 
     const availableProfileOptions = React.useMemo(() => {
-        const filtered = profileOptions.filter((option) => !selectedProfilesSet.has(option.value));
+        const filtered = profileOptions.filter(
+            (option) => !selectedProfilesSet.has(option.value),
+        );
 
         const selectedGroupId = selectedProfiles[0]?.groupId ?? null;
         if (selectedGroupId === null) {
@@ -214,7 +234,11 @@ export function ProfileReassignmentModal({
                 return prev;
             }
 
-            if (selectedProfiles.length > 0 && selectedProfileGroupId !== null && selectedProfile.groupId !== selectedProfileGroupId) {
+            if (
+                selectedProfiles.length > 0 &&
+                selectedProfileGroupId !== null &&
+                selectedProfile.groupId !== selectedProfileGroupId
+            ) {
                 setFieldErrors((next) => ({
                     ...next,
                     profileIds: "Please select profiles from the same group.",
@@ -233,7 +257,11 @@ export function ProfileReassignmentModal({
             ];
         });
 
-        setFieldErrors((prev) => ({ ...prev, profileIds: undefined, general: undefined }));
+        setFieldErrors((prev) => ({
+            ...prev,
+            profileIds: undefined,
+            general: undefined,
+        }));
         setProfileDropdownKey((prev) => prev + 1);
         setProfileSearch("");
     };
@@ -243,14 +271,24 @@ export function ProfileReassignmentModal({
         setSelectedOperatorId("");
         setSelectedOperatorName("");
         setProfileSearch("");
-        setFieldErrors((prev) => ({ ...prev, operatorId: undefined, general: undefined }));
+        setFieldErrors((prev) => ({
+            ...prev,
+            operatorId: undefined,
+            general: undefined,
+        }));
     };
 
     const handleOperatorChange = (operatorId: string) => {
         setSelectedOperatorId(operatorId);
-        setFieldErrors((prev) => ({ ...prev, operatorId: undefined, general: undefined }));
+        setFieldErrors((prev) => ({
+            ...prev,
+            operatorId: undefined,
+            general: undefined,
+        }));
 
-        const selected = operatorOptions.find((option) => option.value === operatorId);
+        const selected = operatorOptions.find(
+            (option) => option.value === operatorId,
+        );
         setSelectedOperatorName(selected?.label ?? "");
     };
 
@@ -297,7 +335,7 @@ export function ProfileReassignmentModal({
             onClose={onClose}
             onSubmit={handleSubmit}
             title="Emergency Reassignment"
-            description="Profiles 'Sofia_VIP', 'Luna_Premium', 'Aria_Elite' are currently offline due to operator sickness."
+            description=""
             submitLabel={isSubmitting ? "Confirming..." : "Confirm Reassign"}
             ariaLabel="Emergency reassignment"
             contentClassName="max-w-4xl rounded-[22px] p-0"
@@ -313,7 +351,9 @@ export function ProfileReassignmentModal({
                     onChange={handleAddProfile}
                     onSearchChange={setProfileSearch}
                     placeholder={
-                        isProfilesPending ? "Searching profiles..." : "Search unassigned profile name/id"
+                        isProfilesPending
+                            ? "Searching profiles..."
+                            : "Search unassigned profile name/id"
                     }
                     emptyText={
                         isProfilesError
@@ -334,7 +374,9 @@ export function ProfileReassignmentModal({
                         onChange={handleOperatorChange}
                         onSearchChange={setOperatorSearch}
                         placeholder={
-                            isOperatorsPending ? "Searching operators..." : "Search operator id/name"
+                            isOperatorsPending
+                                ? "Searching operators..."
+                                : "Search operator id/name"
                         }
                         emptyText={
                             isOperatorsError
@@ -382,8 +424,12 @@ export function ProfileReassignmentModal({
 
             {selectedProfileGroupId !== null && (
                 <div className="rounded-2xl border border-border bg-bg-secondary px-4 py-3">
-                    <AppText variant="description" className="font-medium text-text-secondary">
-                        Operator group locked to {selectedProfileGroupName || `Group #${selectedProfileGroupId}`}.
+                    <AppText
+                        variant="description"
+                        className="font-medium text-text-secondary"
+                    >
+                        Operator group locked to{" "}
+                        {selectedProfileGroupName || `Group #${selectedProfileGroupId}`}.
                     </AppText>
                 </div>
             )}
