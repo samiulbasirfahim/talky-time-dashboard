@@ -89,10 +89,11 @@ export function ProfileAssignSection() {
 
     const { data: operatorsData, isPending: isOperatorsPending } = useSearchOperators(
         debouncedOperatorSearch,
+        undefined,
+        selectedGroupId
     );
     const { data: groupsData, isPending: isGroupsPending } = useAllGroups();
-    const shouldFetchProfilesForSingleAssign =
-        assignMode === "single" && Boolean(selectedOperatorId) && Boolean(selectedGroupId);
+    const shouldFetchProfilesForSingleAssign = assignMode === "single";
     const { data: profilesData, isPending: isProfilesPending } = useSearchProfiles({
         query: debouncedProfileSearch,
         groupId: selectedGroupId || undefined,
@@ -204,12 +205,12 @@ export function ProfileAssignSection() {
         );
 
         if (assignMode === "single") {
-            setSelectedGroupId(selected ? String(selected.group) : "");
-            setSelectedGroupName(selected?.group_name ?? "");
-            setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
-            setSelectedProfileIds([]);
-            setProfileSearch("");
-            setProfileDropdownKey((prev) => prev + 1);
+            const grpId = selected?.group;
+            if (grpId) {
+                setSelectedGroupId(String(grpId));
+                setSelectedGroupName(selected?.group_name ?? "");
+                setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
+            }
         }
     };
 
@@ -232,6 +233,16 @@ export function ProfileAssignSection() {
 
             return [...prev, profileId];
         });
+
+        const selectedProfile = (profilesData?.results ?? []).find(p => String(p.id) === profileId);
+        const groupId = selectedProfile?.group ?? selectedProfile?.group_id;
+        
+        if (groupId) {
+            setSelectedGroupId(String(groupId));
+            const groupOption = groupOptions.find(g => g.value === String(groupId));
+            setSelectedGroupName(groupOption?.label || selectedProfile?.group_name || "");
+            setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
+        }
 
         setFieldErrors((prev) => ({ ...prev, profileIds: undefined }));
         setProfileDropdownKey((prev) => prev + 1);
@@ -346,16 +357,13 @@ export function ProfileAssignSection() {
 
                 {assignMode === "single" ? (
                     <SearchableDropdown
-                        label="Operator"
-                        value={selectedOperatorId}
-                        options={operatorOptions}
-                        onChange={handleOperatorChange}
-                        onSearchChange={setOperatorSearch}
-                        placeholder={
-                            isOperatorsPending ? "Searching operators..." : "Search operator id/name"
-                        }
-                        emptyText={isOperatorsPending ? "Searching..." : "No operators found."}
-                        description={fieldErrors.operatorId}
+                        label="Group"
+                        value={selectedGroupId}
+                        options={groupOptions}
+                        onChange={handleGroupChange}
+                        placeholder={isGroupsPending ? "Loading groups..." : "Search group (optional)"}
+                        emptyText={isGroupsPending ? "Loading groups..." : "No groups found."}
+                        description={fieldErrors.groupId}
                         descriptionClassName="text-red"
                     />
                 ) : (
@@ -376,13 +384,17 @@ export function ProfileAssignSection() {
                     </div>
                 )}
                 {assignMode === "single" ? (
-                    <AppInputField
-                        label="Group"
-                        value={selectedGroupName}
-                        placeholder="Select an operator to auto-fill group"
-                        disabled
-                        readOnly
-                        description={fieldErrors.groupId}
+                    <SearchableDropdown
+                        label="Operator"
+                        value={selectedOperatorId}
+                        options={operatorOptions}
+                        onChange={handleOperatorChange}
+                        onSearchChange={setOperatorSearch}
+                        placeholder={
+                            isOperatorsPending ? "Searching operators..." : "Search operator id/name"
+                        }
+                        emptyText={isOperatorsPending ? "Searching..." : "No operators found."}
+                        description={fieldErrors.operatorId}
                         descriptionClassName="text-red"
                     />
                 ) : (
@@ -400,34 +412,22 @@ export function ProfileAssignSection() {
 
                 {assignMode === "single" && (
                     <div className="space-y-2">
-                        {selectedOperatorId ? (
-                            <SearchableDropdown
-                                key={profileDropdownKey}
-                                label="Profile name"
-                                value=""
-                                options={availableProfileOptions}
-                                onChange={handleAddProfile}
-                                onSearchChange={setProfileSearch}
-                                placeholder={
-                                    isProfilesPending
-                                        ? "Loading profiles..."
-                                        : "Search profile name/id"
-                                }
-                                emptyText={isProfilesPending ? "Loading profiles..." : "No profiles found for this group."}
-                                description={fieldErrors.profileIds}
-                                descriptionClassName="text-red"
-                            />
-                        ) : (
-                            <AppInputField
-                                label="Profile name"
-                                value=""
-                                placeholder="Select an operator first"
-                                disabled
-                                readOnly
-                                description={fieldErrors.profileIds}
-                                descriptionClassName="text-red"
-                            />
-                        )}
+                        <SearchableDropdown
+                            key={profileDropdownKey}
+                            label="Profile name"
+                            value=""
+                            options={availableProfileOptions}
+                            onChange={handleAddProfile}
+                            onSearchChange={setProfileSearch}
+                            placeholder={
+                                isProfilesPending
+                                    ? "Loading profiles..."
+                                    : "Search profile name/id"
+                            }
+                            emptyText={isProfilesPending ? "Loading profiles..." : "No profiles found."}
+                            description={fieldErrors.profileIds}
+                            descriptionClassName="text-red"
+                        />
 
                         {selectedProfileIds.length > 0 && (
                             <div className="flex max-h-24 flex-wrap gap-2 overflow-y-auto rounded-lg border border-border bg-bg-secondary p-2">
