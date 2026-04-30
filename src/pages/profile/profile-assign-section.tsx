@@ -1,7 +1,6 @@
 import { Moon, Sun, UserRound, UsersRound, X } from "lucide-react";
 import React from "react";
 import { AppButton } from "../../components/button";
-import { AppInputField } from "../../components/form-field";
 import {
     SearchableDropdown,
     type SearchableDropdownOption,
@@ -68,7 +67,6 @@ export function ProfileAssignSection() {
     const [operatorSearch, setOperatorSearch] = React.useState("");
     const [profileSearch, setProfileSearch] = React.useState("");
     const [selectedGroupId, setSelectedGroupId] = React.useState("");
-    const [selectedGroupName, setSelectedGroupName] = React.useState("");
     const [selectedProfileIds, setSelectedProfileIds] = React.useState<string[]>([]);
     const [profileDropdownKey, setProfileDropdownKey] = React.useState(0);
     const [fieldErrors, setFieldErrors] = React.useState<AssignFieldErrors>({});
@@ -208,7 +206,6 @@ export function ProfileAssignSection() {
             const grpId = selected?.group;
             if (grpId) {
                 setSelectedGroupId(String(grpId));
-                setSelectedGroupName(selected?.group_name ?? "");
                 setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
             }
         }
@@ -216,8 +213,6 @@ export function ProfileAssignSection() {
 
     const handleGroupChange = (groupId: string) => {
         setSelectedGroupId(groupId);
-        const selected = groupOptions.find((option) => option.value === groupId);
-        setSelectedGroupName(selected?.label ?? "");
         setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
     };
 
@@ -236,11 +231,9 @@ export function ProfileAssignSection() {
 
         const selectedProfile = (profilesData?.results ?? []).find(p => String(p.id) === profileId);
         const groupId = selectedProfile?.group ?? selectedProfile?.group_id;
-        
+
         if (groupId) {
             setSelectedGroupId(String(groupId));
-            const groupOption = groupOptions.find(g => g.value === String(groupId));
-            setSelectedGroupName(groupOption?.label || selectedProfile?.group_name || "");
             setFieldErrors((prev) => ({ ...prev, groupId: undefined }));
         }
 
@@ -256,7 +249,6 @@ export function ProfileAssignSection() {
         setSelectedOperatorId("");
         setSelectedOperatorName("");
         setSelectedGroupId("");
-        setSelectedGroupName("");
         setSelectedProfileIds([]);
         setProfileSearch("");
         setProfileDropdownKey((prev) => prev + 1);
@@ -300,7 +292,8 @@ export function ProfileAssignSection() {
             try {
                 await assignProfile({
                     operator_id: operatorIdAsNumber,
-                    profile_id: profileIdsAsNumber                });
+                    profile_id: profileIdsAsNumber
+                });
 
                 toast.success(`Profile assigned successfully to ${selectedOperatorName || "operator"}.`);
                 resetAssignForm();
