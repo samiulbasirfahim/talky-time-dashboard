@@ -1,6 +1,6 @@
 import axios, {
     type AxiosRequestConfig,
-    type InternalAxiosRequestConfig
+    type InternalAxiosRequestConfig,
 } from "axios";
 
 import { useAuthStore } from "./store/auth.store";
@@ -9,12 +9,10 @@ if (!import.meta.env.VITE_BASE_URL) {
     throw new Error("VITE_BASE_URL is not defined in the environment variables.");
 }
 
-
-
 const options: AxiosRequestConfig = {
     baseURL: import.meta.env.VITE_BASE_URL,
     timeout: 10000,
-}
+};
 
 export const apiClient = axios.create(options);
 
@@ -52,9 +50,9 @@ const refreshAccessToken = async (): Promise<string> => {
             method: "POST",
             url: "/accounts/refresh/",
             data: {
-                refresh
-            }
-        })
+                refresh,
+            },
+        });
 
         if (response.status === 200) {
             const newAccessToken = response.data.access;
@@ -70,19 +68,16 @@ const refreshAccessToken = async (): Promise<string> => {
         useAuthStore.getState().clearTokens();
         throw error;
     }
-}
+};
 
-
-apiClient.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-        const token = useAuthStore.getState().accessToken;
-        if (token && !config.unprotected) {
-            config.headers.set("Authorization", `Bearer ${token}`);
-        }
-        config.headers.set("ngrok-skip-browser-warning", "1");
-        return config;
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    const token = useAuthStore.getState().accessToken;
+    if (token && !config.unprotected) {
+        config.headers.set("Authorization", `Bearer ${token}`);
     }
-);
+    config.headers.set("ngrok-skip-browser-warning", "1");
+    return config;
+});
 
 apiClient.interceptors.response.use(
     (response) => response,
@@ -93,11 +88,9 @@ apiClient.interceptors.response.use(
         const alreadyRetried = originalRequest._retry;
         const isProtected = !originalRequest.unprotected;
 
-
         if (!is401 || alreadyRetried || !isProtected) {
             return Promise.reject(error);
         }
-        
 
         if (isRefreshing) {
             return new Promise((resolve, reject) => {
@@ -125,5 +118,5 @@ apiClient.interceptors.response.use(
         } finally {
             isRefreshing = false;
         }
-    }
-)
+    },
+);

@@ -7,6 +7,7 @@ export const SUPERVISOR_ALLOWED_ROUTES: string[] = [
     "/profile",
     "/csv-upload",
     "/bonus-performance",
+    "/score-cutoffs",
     "/payouts",
     "/discipline",
 ];
