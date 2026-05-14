@@ -56,6 +56,7 @@ type SettingsSystemConfigurationProps = {
     onTimezoneChange: (value: string) => void;
     onCurrencyChange: (value: string) => void;
     onResetDayChange: (value: string) => void;
+    isReadOnly?: boolean;
 };
 
 export function SettingsSystemConfiguration({
@@ -67,6 +68,7 @@ export function SettingsSystemConfiguration({
     onTimezoneChange,
     onCurrencyChange,
     onResetDayChange,
+    isReadOnly = false,
 }: SettingsSystemConfigurationProps) {
 
     return (
@@ -89,6 +91,7 @@ export function SettingsSystemConfiguration({
                     type="text"
                     value={systemName}
                     onChange={onSystemNameChange}
+                    disabled={isReadOnly}
                 />
 
                 <AppDropdownField
@@ -96,6 +99,7 @@ export function SettingsSystemConfiguration({
                     value={timezone}
                     options={TIMEZONE_OPTIONS}
                     onChange={onTimezoneChange}
+                    disabled={isReadOnly}
                 />
 
                 <AppDropdownField
@@ -103,6 +107,7 @@ export function SettingsSystemConfiguration({
                     value={currency}
                     options={CURRENCY_OPTIONS}
                     onChange={onCurrencyChange}
+                    disabled={isReadOnly}
                 />
 
                 <AppDropdownField
@@ -110,6 +115,7 @@ export function SettingsSystemConfiguration({
                     value={resetDay}
                     options={RESET_DAY_OPTIONS}
                     onChange={onResetDayChange}
+                    disabled={isReadOnly}
                 />
             </div>
         </section>

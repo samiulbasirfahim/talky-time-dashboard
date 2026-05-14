@@ -9,6 +9,7 @@ type SettingsExchangeRateProps = {
     onExchangeRateChange: (value: string) => void;
     onUpdateExchangeRate: () => void;
     isUpdatingExchangeRate: boolean;
+    isReadOnly?: boolean;
 };
 
 export function SettingsExchangeRate({
@@ -17,6 +18,7 @@ export function SettingsExchangeRate({
     onExchangeRateChange,
     onUpdateExchangeRate,
     isUpdatingExchangeRate,
+    isReadOnly = false,
 }: SettingsExchangeRateProps) {
 
     const formattedLastUpdated = (() => {
@@ -60,6 +62,7 @@ export function SettingsExchangeRate({
                 onChange={onExchangeRateChange}
                 fullWidth={false}
                 inputClassName="w-36"
+                disabled={isReadOnly}
                 prefix={
                     <AppText variant="description" className="text-base text-text-secondary">
                         $1 USD =
@@ -82,17 +85,19 @@ export function SettingsExchangeRate({
                     </span>
                 </div>
 
-                <AppButton
-                    variant="outline"
-                    size="sm"
-                    className="h-9 rounded-lg border-text-focus/45 px-4 font-semibold text-text-focus"
-                    onClick={onUpdateExchangeRate}
-                    isLoading={isUpdatingExchangeRate}
-                    loadingLabel="Updating..."
-                    disabled={isUpdatingExchangeRate}
-                >
-                    Update Rate
-                </AppButton>
+                {!isReadOnly && (
+                    <AppButton
+                        variant="outline"
+                        size="sm"
+                        className="h-9 rounded-lg border-text-focus/45 px-4 font-semibold text-text-focus"
+                        onClick={onUpdateExchangeRate}
+                        isLoading={isUpdatingExchangeRate}
+                        loadingLabel="Updating..."
+                        disabled={isUpdatingExchangeRate}
+                    >
+                        Update Rate
+                    </AppButton>
+                )}
             </div>
 
             <div className="rounded-xl bg-bg-focus px-4 py-3">

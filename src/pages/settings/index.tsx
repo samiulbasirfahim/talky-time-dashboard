@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { HeaderSection } from "../../components/header-section";
 import { AppText } from "../../components/text";
-import { useSystemSettings, useUpdateSystemSettings } from "../../lib/queries";
+import { useMe, useSystemSettings, useUpdateSystemSettings } from "../../lib/queries";
+import { isReadOnlyRole } from "../../lib/access-control";
 import { SettingsExchangeRate } from "./settings-exchange-rate";
 import { SettingsPayoutConfiguration } from "./settings-payout-configuration";
 import { SettingsShiftSettings } from "./settings-shift-settings";
@@ -52,6 +53,8 @@ function getFirstErrorMessage(value: unknown): string | undefined {
 export function Settings() {
     const [formValues, setFormValues] = useState<SettingsFormValues>(INITIAL_SETTINGS_FORM);
     const [exchangeRateUpdatedAt, setExchangeRateUpdatedAt] = useState<string | undefined>(undefined);
+    const { data: meData } = useMe();
+    const isReadOnly = isReadOnlyRole(meData?.data.role);
     const {
         data: settingsData,
         isLoading: isSettingsLoading,
@@ -87,6 +90,10 @@ export function Settings() {
     }, [settingsData]);
 
     const handleUpdateExchangeRate = async () => {
+        if (isReadOnly) {
+            return;
+        }
+
         const numericRate = Number(formValues.exchangeRateUsdToCop);
 
         if (!Number.isFinite(numericRate) || numericRate <= 0) {
@@ -126,6 +133,10 @@ export function Settings() {
     };
 
     const handleSaveAllChanges = async () => {
+        if (isReadOnly) {
+            return;
+        }
+
         const monthlyResetDay = Number(formValues.monthlyResetDay);
 
         if (!Number.isInteger(monthlyResetDay) || monthlyResetDay < 1 || monthlyResetDay > 31) {
@@ -180,16 +191,20 @@ export function Settings() {
             <HeaderSection
                 title="Settings"
                 description={`Curate and manage operator incentives based on real-time performance metrics across all regional clusters.`}
-                buttons={[
-                    {
-                        label: "Save All Changes",
-                        icon: Save,
-                        onClick: handleSaveAllChanges,
-                        isLoading: isSavingSettings,
-                        loadingLabel: "Saving...",
-                        disabled: isSettingsLoading || isSavingSettings,
-                    },
-                ]}
+                buttons={
+                    isReadOnly
+                        ? []
+                        : [
+                            {
+                                label: "Save All Changes",
+                                icon: Save,
+                                onClick: handleSaveAllChanges,
+                                isLoading: isSavingSettings,
+                                loadingLabel: "Saving...",
+                                disabled: isSettingsLoading || isSavingSettings,
+                            },
+                        ]
+                }
             />
 
             <div className="p-4">
@@ -211,6 +226,7 @@ export function Settings() {
                         onQualificationThresholdChange={(value) => {
                             setFormValues((prev) => ({ ...prev, qualificationThreshold: value }));
                         }}
+                        isReadOnly={isReadOnly}
                     />
                     <SettingsSystemConfiguration
                         systemName={formValues.systemName}
@@ -229,6 +245,7 @@ export function Settings() {
                         onResetDayChange={(value) => {
                             setFormValues((prev) => ({ ...prev, monthlyResetDay: value }));
                         }}
+                        isReadOnly={isReadOnly}
                     />
                     <SettingsExchangeRate
                         exchangeRate={formValues.exchangeRateUsdToCop}
@@ -238,6 +255,7 @@ export function Settings() {
                         }}
                         onUpdateExchangeRate={handleUpdateExchangeRate}
                         isUpdatingExchangeRate={isUpdatingExchangeRate}
+                        isReadOnly={isReadOnly}
                     />
                     <SettingsShiftSettings
                         dayShiftStartTime={formValues.dayShiftStartTime}
@@ -256,6 +274,7 @@ export function Settings() {
                         onNightShiftEndTimeChange={(value) => {
                             setFormValues((prev) => ({ ...prev, nightShiftEndTime: value }));
                         }}
+                        isReadOnly={isReadOnly}
                     />
                 </div>
             </div>

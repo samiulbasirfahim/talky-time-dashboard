@@ -69,6 +69,7 @@ type AppDropdownFieldProps = BaseFieldProps & {
     options: DropdownOption[];
     onChange: (value: string) => void;
     dropdownClassName?: string;
+    disabled?: boolean;
 };
 
 export function AppDropdownField({
@@ -81,6 +82,7 @@ export function AppDropdownField({
     options,
     onChange,
     dropdownClassName = "",
+    disabled = false,
 }: AppDropdownFieldProps) {
     return (
         <div className={`space-y-2 ${containerClassName}`}>
@@ -92,6 +94,7 @@ export function AppDropdownField({
                 value={value}
                 options={options}
                 onChange={onChange}
+                disabled={disabled}
                 className={`text-text-secondary ${dropdownClassName}`}
             />
 

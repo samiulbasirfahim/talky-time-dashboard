@@ -3,18 +3,22 @@ import type { AuthUserRole } from "../type";
 export const SUPERVISOR_ALLOWED_ROUTES: string[] = [
     "/",
     "/supervisor",
+    "/general-manager",
     "/operators",
     "/profile",
     "/csv-upload",
-    "/bonus-performance",
     "/score-cutoffs",
+    "/bonus-performance",
+    "/report-history",
     "/payouts",
     "/discipline",
+    "/settings",
+    "/transactions",
+    "/management",
 ];
 
 export const GENERAL_MANAGER_ALLOWED_ROUTES: string[] = [
     ...SUPERVISOR_ALLOWED_ROUTES,
-    "/general-manager",
 ];
 
 function normalizePathname(pathname: string) {
@@ -70,4 +74,8 @@ export function canAccessPathByRole(
     }
 
     return false;
+}
+
+export function isReadOnlyRole(role: AuthUserRole | undefined) {
+    return role === "SUPERVISOR" || role === "GENERAL_MANAGER";
 }

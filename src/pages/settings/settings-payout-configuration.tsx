@@ -5,11 +5,13 @@ import { AppText } from "../../components/text";
 type SettingsPayoutConfigurationProps = {
     qualificationThreshold: string;
     onQualificationThresholdChange: (value: string) => void;
+    isReadOnly?: boolean;
 };
 
 export function SettingsPayoutConfiguration({
     qualificationThreshold,
     onQualificationThresholdChange,
+    isReadOnly = false,
 }: SettingsPayoutConfigurationProps) {
     return (
         <section className="p-4 shadow-border shadow-xs rounded-md w-full space-y-4 border border-border">
@@ -31,6 +33,7 @@ export function SettingsPayoutConfiguration({
                 type="number"
                 value={qualificationThreshold}
                 onChange={onQualificationThresholdChange}
+                disabled={isReadOnly}
                 suffix={
                     <AppText variant="description" className="text-base text-text-muted">
                         bonuses

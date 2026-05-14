@@ -26,7 +26,9 @@ import {
     useUpdateDiscount,
     useUpdateCashAdvance,
     useUpdateDebt,
+    useMe,
 } from "../../lib/queries";
+import { isReadOnlyRole } from "../../lib/access-control";
 import {
     CashAdvanceModal,
     type CashAdvanceFormValues,
@@ -276,7 +278,9 @@ const buildActionColumn = (
 const buildDebtColumns = (
     onEdit: (row: DebtRow) => void,
     onDelete: (row: DebtRow) => void,
-): TableColumn<DebtRow>[] => [
+    showActions: boolean = true,
+): TableColumn<DebtRow>[] => {
+    const columns: TableColumn<DebtRow>[] = [
         {
             key: "operator",
             header: "Operator Name",
@@ -305,13 +309,21 @@ const buildDebtColumns = (
             header: "Date",
             render: (row) => <AppText variant="description">{row.date}</AppText>,
         },
-        buildActionColumn(onEdit, onDelete),
     ];
+
+    if (showActions) {
+        columns.push(buildActionColumn(onEdit, onDelete));
+    }
+
+    return columns;
+};
 
 const buildCashAdvanceColumns = (
     onEdit: (row: DebtRow) => void,
     onDelete: (row: DebtRow) => void,
-): TableColumn<DebtRow>[] => [
+    showActions: boolean = true,
+): TableColumn<DebtRow>[] => {
+    const columns: TableColumn<DebtRow>[] = [
         {
             key: "operator",
             header: "Operator Name",
@@ -331,8 +343,14 @@ const buildCashAdvanceColumns = (
             header: "Date",
             render: (row) => <AppText variant="description">{row.date}</AppText>,
         },
-        buildActionColumn(onEdit, onDelete),
     ];
+
+    if (showActions) {
+        columns.push(buildActionColumn(onEdit, onDelete));
+    }
+
+    return columns;
+};
 
 const buildReprimandColumns = (): TableColumn<DebtRow>[] => [
         {
@@ -376,7 +394,9 @@ const buildReprimandColumns = (): TableColumn<DebtRow>[] => [
 const buildDiscountColumns = (
     onEdit: (row: DebtRow) => void,
     onDelete: (row: DebtRow) => void,
-): TableColumn<DebtRow>[] => [
+    showActions: boolean = true,
+): TableColumn<DebtRow>[] => {
+    const columns: TableColumn<DebtRow>[] = [
         {
             key: "operator",
             header: "Operator Name",
@@ -401,15 +421,24 @@ const buildDiscountColumns = (
             header: "Reason",
             render: (row) => <AppText variant="description">{row.reason}</AppText>,
         },
-        {
+    ];
+
+    if (showActions) {
+        columns.push({
             ...buildActionColumn(onEdit, onDelete),
             header: "Action",
-        },
-    ];
+        });
+    }
+
+    return columns;
+};
 
 export function TransactionsDebtsTable() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { data: meData } = useMe();
+    const isReadOnly = isReadOnlyRole(meData?.data.role);
+    const showActions = !isReadOnly;
     const [activeTab, setActiveTab] = useState<DebtTab>(() => parseTabFromHash(location.hash) ?? "debts");
     const [currentPage, setCurrentPage] = useState(1);
     const [rows, setRows] = useState<DebtRow[]>(MOCK_DEBT_ROWS);
@@ -628,10 +657,10 @@ export function TransactionsDebtsTable() {
     };
 
     const columnsByTab: Record<DebtTab, TableColumn<DebtRow>[]> = {
-        debts: buildDebtColumns(handleEditEntry, handleDeleteDebt),
-        "cash-advances": buildCashAdvanceColumns(handleEditEntry, handleDeleteDebt),
+        debts: buildDebtColumns(handleEditEntry, handleDeleteDebt, showActions),
+        "cash-advances": buildCashAdvanceColumns(handleEditEntry, handleDeleteDebt, showActions),
         reprimands: buildReprimandColumns(),
-        discount: buildDiscountColumns(handleEditEntry, handleDeleteDebt),
+        discount: buildDiscountColumns(handleEditEntry, handleDeleteDebt, showActions),
     };
 
     const handleCloseDebtModal = () => {
@@ -1098,19 +1127,17 @@ export function TransactionsDebtsTable() {
                         </div>
 
                             <div className="h-12">
-                                     {
-                            activeTabConfig.addLabel && (
-                                <AppButton
-                                    variant="focus"
-                                    size="sm"
-                                    prefixIcon={Plus}
-                                    onClick={handleCreateEntry}
-                                    className="mb-2"
-                                >
-                                    {activeTabConfig.addLabel}
-                                </AppButton>
-                            )
-                        }
+                                {showActions && activeTabConfig.addLabel && (
+                                    <AppButton
+                                        variant="focus"
+                                        size="sm"
+                                        prefixIcon={Plus}
+                                        onClick={handleCreateEntry}
+                                        className="mb-2"
+                                    >
+                                        {activeTabConfig.addLabel}
+                                    </AppButton>
+                                )}
                             </div>
                     </div>
                 }
@@ -1123,26 +1150,30 @@ export function TransactionsDebtsTable() {
                 }}
             />
 
-            <DebtFormModal
-                open={showDebtModal}
-                onClose={handleCloseDebtModal}
-                onSubmit={handleSubmitDebt}
-                defaultValues={defaultValues}
-            />
+            {showActions && (
+                <>
+                    <DebtFormModal
+                        open={showDebtModal}
+                        onClose={handleCloseDebtModal}
+                        onSubmit={handleSubmitDebt}
+                        defaultValues={defaultValues}
+                    />
 
-            <CashAdvanceModal
-                open={showCashAdvanceModal}
-                onClose={handleCloseCashAdvanceModal}
-                onSubmit={handleSubmitCashAdvance}
-                defaultValues={cashAdvanceDefaultValues}
-            />
+                    <CashAdvanceModal
+                        open={showCashAdvanceModal}
+                        onClose={handleCloseCashAdvanceModal}
+                        onSubmit={handleSubmitCashAdvance}
+                        defaultValues={cashAdvanceDefaultValues}
+                    />
 
-            <DiscountModal
-                open={showDiscountModal}
-                onClose={handleCloseDiscountModal}
-                onSubmit={handleSubmitDiscount}
-                defaultValues={discountDefaultValues}
-            />
+                    <DiscountModal
+                        open={showDiscountModal}
+                        onClose={handleCloseDiscountModal}
+                        onSubmit={handleSubmitDiscount}
+                        defaultValues={discountDefaultValues}
+                    />
+                </>
+            )}
         </>
     );
 }

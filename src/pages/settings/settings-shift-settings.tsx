@@ -20,6 +20,7 @@ type SettingsShiftSettingsProps = {
     onDayShiftEndTimeChange: (value: string) => void;
     onNightShiftStartTimeChange: (value: string) => void;
     onNightShiftEndTimeChange: (value: string) => void;
+    isReadOnly?: boolean;
 };
 
 export function SettingsShiftSettings({
@@ -31,6 +32,7 @@ export function SettingsShiftSettings({
     onDayShiftEndTimeChange,
     onNightShiftStartTimeChange,
     onNightShiftEndTimeChange,
+    isReadOnly = false,
 }: SettingsShiftSettingsProps) {
 
     return (
@@ -61,12 +63,14 @@ export function SettingsShiftSettings({
                         value={dayShiftStartTime}
                         options={TIME_OPTIONS}
                         onChange={onDayShiftStartTimeChange}
+                        disabled={isReadOnly}
                     />
                     <AppDropdownField
                         label="End Time"
                         value={dayShiftEndTime}
                         options={TIME_OPTIONS}
                         onChange={onDayShiftEndTimeChange}
+                        disabled={isReadOnly}
                     />
                 </div>
             </div>
@@ -85,12 +89,14 @@ export function SettingsShiftSettings({
                         value={nightShiftStartTime}
                         options={TIME_OPTIONS}
                         onChange={onNightShiftStartTimeChange}
+                        disabled={isReadOnly}
                     />
                     <AppDropdownField
                         label="End Time"
                         value={nightShiftEndTime}
                         options={TIME_OPTIONS}
                         onChange={onNightShiftEndTimeChange}
+                        disabled={isReadOnly}
                     />
                 </div>
             </div>

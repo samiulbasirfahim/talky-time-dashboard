@@ -13,12 +13,15 @@ export interface ManagementRow {
 interface ManagementTableProps {
     onEditAdmin?: (row: ManagementRow) => void;
     onDeleteAdmin?: (row: ManagementRow) => void | Promise<void>;
+    showActions?: boolean;
 }
 
 const buildColumns = (
     onEditAdmin?: (row: ManagementRow) => void,
     onDeleteAdmin?: (row: ManagementRow) => void | Promise<void>,
-): TableColumn<ManagementRow>[] => [
+    showActions: boolean = true,
+): TableColumn<ManagementRow>[] => {
+    const columns: TableColumn<ManagementRow>[] = [
         {
             key: "name",
             header: "Name",
@@ -33,7 +36,10 @@ const buildColumns = (
             header: "Email",
             render: (row) => <AppText variant="description">{row.email}</AppText>,
         },
-        {
+    ];
+
+    if (showActions) {
+        columns.push({
             key: "actions",
             header: "Actions",
             align: "right",
@@ -43,10 +49,17 @@ const buildColumns = (
                     onDelete={onDeleteAdmin ? () => onDeleteAdmin(row) : undefined}
                 />
             ),
-        },
-    ];
+        });
+    }
 
-export function ManagementTable({ onEditAdmin, onDeleteAdmin }: ManagementTableProps) {
+    return columns;
+};
+
+export function ManagementTable({
+    onEditAdmin,
+    onDeleteAdmin,
+    showActions = true,
+}: ManagementTableProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const {
         data: paginatedData,
@@ -54,7 +67,10 @@ export function ManagementTable({ onEditAdmin, onDeleteAdmin }: ManagementTableP
         isError,
     } = usePaginatedAdmins(currentPage);
 
-    const columns = useMemo(() => buildColumns(onEditAdmin, onDeleteAdmin), [onEditAdmin, onDeleteAdmin]);
+    const columns = useMemo(
+        () => buildColumns(onEditAdmin, onDeleteAdmin, showActions),
+        [onEditAdmin, onDeleteAdmin, showActions],
+    );
 
     const rows = useMemo(() => {
         return (paginatedData?.results ?? []).map((admin) => ({

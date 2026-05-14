@@ -4,7 +4,8 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { HeaderSection } from "../../components/header-section";
 import { useAppModal } from "../../hooks/useAppModal";
-import { useCreateAdmin, useDeleteAdmin } from "../../lib/queries";
+import { useCreateAdmin, useDeleteAdmin, useMe } from "../../lib/queries";
+import { isReadOnlyRole } from "../../lib/access-control";
 import type { AdminCreateValidationErrors } from "../../type";
 import { CreateAdminModal, type CreateAdminFormValues } from "./create-admin-modal";
 import { ManagementTable, type ManagementRow } from "./managemenet-table";
@@ -12,6 +13,8 @@ import { ManagementTable, type ManagementRow } from "./managemenet-table";
 export function ManagementPage() {
     const adminModal = useAppModal();
     const [editingAdmin, setEditingAdmin] = useState<ManagementRow | null>(null);
+    const { data: meData } = useMe();
+    const isReadOnly = isReadOnlyRole(meData?.data.role);
     const { mutateAsync: createAdmin } = useCreateAdmin();
     const { mutateAsync: deleteAdmin } = useDeleteAdmin()
 
@@ -85,18 +88,30 @@ export function ManagementPage() {
 
     return <div>
         <HeaderSection title="Management" description="Manage system administrators and security settings"
-            buttons={[
-                {
-                    label: "Create New Admin",
-                    icon: UserPlus,
-                    onClick: handleOpenCreateAdmin,
-                }
-            ]}
+            buttons={
+                isReadOnly
+                    ? []
+                    : [
+                        {
+                            label: "Create New Admin",
+                            icon: UserPlus,
+                            onClick: handleOpenCreateAdmin,
+                        },
+                    ]
+            }
         />
         <div className="p-4">
-            <ManagementTable onEditAdmin={handleEditAdmin} onDeleteAdmin={(ID) => {
-                deleteAdmin(ID.id);
-            }} />
+            <ManagementTable
+                showActions={!isReadOnly}
+                onEditAdmin={isReadOnly ? undefined : handleEditAdmin}
+                onDeleteAdmin={
+                    isReadOnly
+                        ? undefined
+                        : (ID) => {
+                            deleteAdmin(ID.id);
+                        }
+                }
+            />
         </div>
 
         <CreateAdminModal
